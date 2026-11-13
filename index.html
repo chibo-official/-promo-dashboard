@@ -1,0 +1,1372 @@
+<title>販促効果測定</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="robots" content="noindex,nofollow">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: 本部向けの業務画面。上部に月・店舗の絞り込み、その下に判定→施策別の表→推移の順。入力はタブで切替 */
+:root{
+  --bg:#F7F4F3; --surface:#FFFFFF; --surface2:#F0ECEA; --line:#E2DBD8; --fg:#2A1E21; --muted:#6F6266;
+  --red:#942343; --red-soft:#F4E3E8; --grey:#B5B5B6;
+  --good:#1F7A57; --good-bg:#DDF1E8; --warn:#9A6200; --warn-bg:#FBEFD2; --bad:#B4380F; --bad-bg:#FBE1D8;
+  --chart1:#942343; --chart2:#B5B5B6; --grid:#E7E0DD;
+  --sans:'Noto Sans JP','Hiragino Sans','Yu Gothic',Meiryo,sans-serif; --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#171113; --surface:#211A1D; --surface2:#2A2226; --line:#3A2F34; --fg:#F1E9EB; --muted:#A99CA1;
+  --red:#D26A86; --red-soft:#3A2129; --grey:#8E8A8C;
+  --good:#6FD3A6; --good-bg:#1B3329; --warn:#E8B861; --warn-bg:#3A2E14; --bad:#F29A78; --bad-bg:#3C2119;
+  --chart1:#D26A86; --chart2:#8E8A8C; --grid:#332A2E; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#171113; --surface:#211A1D; --surface2:#2A2226; --line:#3A2F34; --fg:#F1E9EB; --muted:#A99CA1;
+  --red:#D26A86; --red-soft:#3A2129; --grey:#8E8A8C;
+  --good:#6FD3A6; --good-bg:#1B3329; --warn:#E8B861; --warn-bg:#3A2E14; --bad:#F29A78; --bad-bg:#3C2119;
+  --chart1:#D26A86; --chart2:#8E8A8C; --grid:#332A2E; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--sans);font-size:14px;line-height:1.6;
+  padding-block:0 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1180px;margin:0 auto}
+header.top{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:16px 0 12px;border-bottom:1px solid var(--line)}
+.logo{height:34px;width:auto}
+:root[data-theme="dark"] .logo{filter:invert(1)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .logo{filter:invert(1)}}
+h1{font-size:18px;margin:0;font-weight:700;letter-spacing:.02em}
+.tabs{display:flex;gap:4px;margin-left:auto;flex-wrap:wrap}
+.tabs a{padding:7px 12px;border-radius:6px;color:var(--muted);text-decoration:none;font-weight:500;border:1px solid transparent}
+.tabs a[aria-current="page"]{background:var(--red);color:#fff}
+.tabs a:not([aria-current]):hover{border-color:var(--line);color:var(--fg)}
+a:focus-visible,button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--red);outline-offset:2px}
+.banner{margin:14px 0 0;padding:10px 14px;border-radius:6px;background:var(--warn-bg);color:var(--warn);display:flex;gap:12px;align-items:center;flex-wrap:wrap;font-size:13px}
+.banner label{display:flex;gap:6px;align-items:center;margin-left:auto;cursor:pointer;font-weight:500}
+.filters{display:flex;gap:16px;flex-wrap:wrap;align-items:end;margin:18px 0}
+.field{display:flex;flex-direction:column;gap:4px;min-width:0}
+.field>span{font-size:12px;color:var(--muted);letter-spacing:.04em}
+select,input[type=number],input[type=date],input[type=text]{font:inherit;color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:7px 10px;min-width:0}
+select{min-width:200px;max-width:100%}
+input[type=number]{width:100%;text-align:right;font-family:var(--mono)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:22px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px 16px;min-width:0}
+.kpi .l{font-size:12px;color:var(--muted)}
+.kpi .v{font-size:26px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.3}
+.kpi .v small{font-size:13px;font-weight:500;color:var(--muted);margin-left:2px}
+.kpi .s{font-size:12px;color:var(--muted)}
+.kpi.main{border-color:var(--red)}
+.kpi.main .v{color:var(--red)}
+h2{font-size:15px;margin:26px 0 4px;font-weight:700}
+.note{font-size:12px;color:var(--muted);margin:0 0 10px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px 16px;min-width:0}
+.tablebox{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:760px;font-variant-numeric:tabular-nums}
+th,td{padding:8px 12px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+th:first-child,td:first-child{text-align:left;white-space:normal;min-width:180px}
+th{font-size:12px;color:var(--muted);font-weight:500;background:var(--surface2);position:sticky;top:0}
+tr:last-child td{border-bottom:0}
+tr.group td{background:var(--red-soft);font-weight:700}
+tr.sub td:first-child{padding-left:28px;color:var(--muted)}
+.chip{display:inline-block;padding:1px 9px;border-radius:99px;font-size:12px;font-weight:500}
+.chip.good{background:var(--good-bg);color:var(--good)}
+.chip.warn{background:var(--warn-bg);color:var(--warn)}
+.chip.bad{background:var(--bad-bg);color:var(--bad)}
+.chip.none{background:var(--surface2);color:var(--muted)}
+.bar{position:relative;height:8px;background:var(--surface2);border-radius:4px;min-width:90px;display:inline-block;width:120px;vertical-align:middle}
+.bar i{position:absolute;left:0;top:0;bottom:0;border-radius:4px;background:var(--red)}
+.bar b{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--fg);opacity:.55}
+.mono{font-family:var(--mono)}
+.two{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:14px}
+@media (max-width:860px){.two{grid-template-columns:minmax(0,1fr)}}
+.chartbox{position:relative;height:260px}
+/* 入力フォーム */
+.formrow{display:grid;grid-template-columns:minmax(160px,2fr) repeat(3,minmax(84px,1fr));gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
+.formrow.head{font-size:12px;color:var(--muted);border-bottom:1px solid var(--line);padding-bottom:4px}
+.formrow .nm{min-width:0;overflow-wrap:anywhere}
+.formrow .tag{display:block;font-size:11px;color:var(--muted)}
+.formrow input:disabled{opacity:.35}
+@media (max-width:640px){.formrow{grid-template-columns:1fr 1fr 1fr}.formrow .nm{grid-column:1/-1;font-weight:500}.formrow.head{display:none}.formrow .lab{display:block;font-size:11px;color:var(--muted)}}
+@media (min-width:641px){.formrow .lab{display:none}}
+.btn{font:inherit;font-weight:500;border:1px solid var(--red);background:var(--red);color:#fff;border-radius:6px;padding:9px 20px;cursor:pointer}
+.btn.ghost{background:transparent;color:var(--red)}
+.btn:hover{filter:brightness(1.08)}
+.msg{font-size:13px;margin-top:8px}
+.msg.err{color:var(--bad)}.msg.ok{color:var(--good)}
+.meta{font-size:12px;color:var(--muted)}
+[hidden]{display:none !important}
+#tblCmp td:first-child,#tblCmp th:first-child{white-space:nowrap;min-width:240px}
+.seg{display:flex;margin:10px 0}
+.seg button{font:inherit;flex:1;padding:10px;border:1px solid var(--line);background:var(--surface);color:var(--fg);cursor:pointer}
+.seg button:first-child{border-radius:6px 0 0 6px}.seg button:last-child{border-radius:0 6px 6px 0}
+.seg button[aria-pressed=true]{background:var(--red);border-color:var(--red);color:#fff}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+.field.wide{grid-column:1/-1}
+.acts{margin-top:12px;display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.sub{font-size:14px;margin:16px 0 6px;font-weight:500}
+.formrow.b5{grid-template-columns:minmax(160px,2fr) repeat(4,minmax(80px,1fr))}
+@media (max-width:640px){.formrow.b5{grid-template-columns:1fr 1fr}}
+.rules{margin:10px 0 0;padding-left:20px;font-size:12px;color:var(--muted)}
+.foot{margin-top:30px;font-size:12px;color:var(--muted);border-top:1px solid var(--line);padding-top:12px}
+@media (prefers-reduced-motion:no-preference){.bar i{transition:width .3s}}
+
+/* ---- v7 FLARO風UI: 赤の上部ナビ+白いカード+大きな数字のKPI(チボーレッド) ---- */
+:root{--nav:#942343;--nav2:#7C1C37;--shadow:0 1px 2px rgba(60,20,32,.06),0 2px 8px rgba(60,20,32,.05)}
+:root[data-theme="dark"]{--nav:#6E1A33;--nav2:#58142A;--shadow:none}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--nav:#6E1A33;--nav2:#58142A;--shadow:none}}
+body{margin:0;overflow-x:hidden;background:var(--bg)}
+header.top{margin-inline:calc(50% - 50vw);padding:0 calc(50vw - 50%);background:var(--nav);border-bottom:0;gap:0;flex-wrap:nowrap;align-items:stretch;box-shadow:0 2px 6px rgba(60,20,32,.25)}
+header.top .logo{height:30px;background:#fff;border-radius:6px;padding:4px 10px;margin:11px 14px 11px 0;align-self:center;filter:none !important}
+header.top h1{color:#fff;font-size:15px;font-weight:700;align-self:center;padding-right:18px;margin-right:6px;border-right:1px solid rgba(255,255,255,.28);white-space:nowrap}
+.tabs{margin-left:0;gap:0;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tabs a{border-radius:0;border:0;border-bottom:3px solid transparent;padding:16px 14px 13px;color:rgba(255,255,255,.78);white-space:nowrap;font-size:13.5px}
+.tabs a:not([aria-current]):hover{background:var(--nav2);color:#fff;border-color:transparent}
+.tabs a[aria-current="page"]{background:var(--nav2);color:#fff;border-bottom-color:#fff;font-weight:700}
+.filters{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 16px;box-shadow:var(--shadow);margin:16px 0}
+.kpis{gap:14px;margin-bottom:8px}
+.kpi{border:0;border-radius:10px;box-shadow:var(--shadow);padding:14px 18px 14px;position:relative;overflow:hidden}
+.kpi::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--grey)}
+.kpi.main::before{background:var(--red)}
+.kpi .l{font-size:12.5px;font-weight:500;letter-spacing:.02em}
+.kpi .v{font-size:32px;letter-spacing:-.01em;margin-top:2px}
+.kpi.main{background:var(--red-soft);border:0}
+h2{display:flex;align-items:center;gap:8px;font-size:15px;margin:28px 0 6px}
+h2::before{content:"";width:4px;height:16px;border-radius:2px;background:var(--red);flex:none}
+.panel,.tablebox{border:0;border-radius:10px;box-shadow:var(--shadow)}
+.panel{padding:16px 18px}
+th{background:var(--surface2);color:var(--muted);font-weight:600;border-bottom:2px solid var(--line)}
+tbody tr:hover td{background:var(--red-soft)}
+tr.group td{background:var(--red-soft);color:var(--red)}
+.chip{padding:2px 10px;font-weight:600}
+.btn{border-radius:8px}
+select,input[type=number],input[type=date],input[type=text]{border-radius:8px}
+.banner{border-radius:10px}
+@media (max-width:760px){header.top h1{display:none}.tabs a{padding:14px 10px 11px;font-size:13px}.kpi .v{font-size:26px}}
+</style>
+
+<div class="wrap">
+<header class="top">
+  <img class="logo" alt="千房 CHIBO OKONOMIYAKI" src="data:image/png;base64,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">
+  <h1>販促効果測定</h1>
+  <nav class="tabs" aria-label="画面">
+    <a href="#dashboard" id="tab-dashboard">ダッシュボード</a>
+    <a href="#compare" id="tab-compare">店舗別比較</a>
+    <a href="#monitor" id="tab-monitor">入力状況</a>
+    <a href="#sales" id="tab-sales">売上取込</a>
+    <a href="#costs" id="tab-costs">費用取込</a>
+    <a href="#masters" id="tab-masters">マスター</a>
+    <a href="#urls" id="tab-urls">店舗URL</a>
+    <a href="#input" id="tab-input">店舗入力(確認用)</a>
+  </nav>
+</header>
+<div class="banner" id="hqBar" hidden>
+  <span><b>本部キー</b>を入力してください。</span>
+  <input id="hqKey" type="password" autocomplete="off" aria-label="本部キー" style="padding:4px 8px">
+  <button class="btn" id="hqGo" type="button">開く</button><span class="msg err" id="hqMsg"></span>
+</div>
+<div class="banner" id="setupNote" hidden><span><b>マスターが未登録です。</b>「マスター」の画面で、初期設定のファイル(seed.json)を読み込んでください。</span><a href="#masters" style="color:inherit;font-weight:700">マスターを開く</a></div>
+<div class="banner" id="banner">
+  <span><b>試作版です。</b>売上・前年・POS割引は2026年10月の実データです。販促の組数・人数・金額は、サンプルの仮の数字を表示しています。</span>
+  <label><input type="checkbox" id="useSample" checked> サンプル入力を表示する</label>
+</div>
+
+<main id="view-dashboard">
+  <div class="filters">
+    <div class="field"><span>対象月</span>
+      <select id="fMonth"><option value="2026-10">2026年10月(実データ)</option><option value="2026-11">2026年11月(入力のみ)</option></select></div>
+    <div class="field"><span>店舗</span><select id="fStore"></select></div>
+    <div class="meta" id="scopeNote" style="margin-left:auto;max-width:420px"></div>
+  </div>
+  <section class="kpis" id="kpis" aria-label="全体サマリー"></section>
+
+  <h2>施策別の費用対効果</h2>
+  <p class="note">費用対効果 = 経由売上(税抜) ÷ 月額費用(税抜)。10倍以上で達成。粗利 = 経由売上 ×(1 − 標準原価率)。粗利判定は「その施策で得た粗利が、かけた費用を上回ったか」を見ます。粗利÷費用が1倍以上なら黒字(費用を粗利で回収できた)、1倍未満なら赤字です。売上の入力は、費用のない施策も含め、すべての施策で金額(税込)を入力します(税抜は自動で計算)。費用は月額固定と、予約ごとにかかる従量を分けて表示しています。</p>
+  <p id="costSrc" style="margin:0 0 10px"></p>
+  <div class="tablebox"><table id="tblPolicy" style="min-width:1100px"></table></div>
+
+  <div class="two">
+    <div>
+      <h2 id="trendTitle">売上の推移(全店・日別)</h2>
+      <p class="note" id="trendNote">実績と前年同曜日の売上。税抜。</p>
+      <div class="panel"><div class="chartbox"><canvas id="cTrend" role="img" aria-label="日別売上と前年同曜日の売上"></canvas></div></div>
+    </div>
+    <div>
+      <h2>POS登録の割引(売上のみ集計)</h2>
+      <p class="note">レジに登録されている割引です。販促費用には含めません。</p>
+      <div class="tablebox"><table id="tblPos" style="min-width:380px"></table></div>
+    </div>
+  </div>
+  <div class="foot">経由売上は、店舗が入力した金額(税込から計算した税抜)です。費用のない施策も同じです。画面の仮データで金額がないものは「人数 × その店舗のお客様単価(10月実績・税抜)」で補っています。千房アプリは営業本部共通費のため、5施策を合算して判定します。</div>
+</main>
+
+<main id="view-compare" hidden>
+  <h2 style="margin-top:18px">店舗別の比較(本部)</h2>
+  <p class="note">店舗ごとの売上・前年同曜日比・お客様数と、販促の経由売上・費用対効果・粗利を並べて確認します。店舗コード順に表示します。見出しをクリックすると、並べ替えられます。</p>
+  <div class="filters"><div class="field"><span>対象月</span><select id="cMonth"></select></div>
+    <div class="field"><span>店舗名で絞る</span><input type="text" id="cFind" placeholder="例: 梅田" style="min-width:180px"></div>
+    <button class="btn ghost" id="cCsv" type="button">CSVで保存</button></div>
+  <div class="tablebox"><table id="tblCmp" style="min-width:1300px"></table></div>
+  <p class="meta" id="cmpNote" style="margin-top:8px"></p>
+</main>
+
+<main id="view-sales" hidden>
+  <h2 style="margin-top:18px">売上・割引CSVの取込(本部)</h2>
+  <p class="note">Gulf CSMから出力した、2種類のCSVを取り込みます。ファイルは複数まとめて選べます。どちらのCSVか、自動で判別します。</p>
+  <div class="panel">
+    <label class="field"><span>売上・割引のCSV(複数選択できます)</span><input type="file" id="salesFile" accept=".csv" multiple></label>
+    <ul class="rules">
+      <li>日次の売上: 店舗別・日別のCSV(営業日、店舗コード、売上実績、売上前年、客数実績、組数実績の列)。売上は税抜、前年は同曜日の前年日です</li>
+      <li>割引の効果: 券種別・日別のCSV(営業日、店舗コード、券種コード、売上貢献額、値引額、値引組数の列)。社員割引・千房優待券・スペシャルサンクスなどのPOS登録の割引です</li>
+      <li>同じ日・同じ店舗(割引は同じ券種)をもう一度取り込むと、置き換えます。月の途中で取り込んでも、あとから追加できます</li>
+    </ul>
+    <div class="msg" id="salesMsg" role="status"></div>
+  </div>
+  <div id="salesPreview"></div>
+  <h2>取込済みの月</h2>
+  <div id="salesList"></div>
+</main>
+
+<main id="view-masters" hidden>
+  <h2 style="margin-top:18px">マスターの管理(本部)</h2>
+  <p class="note">店舗、施策、施策を実施する店舗、本部共通費を管理します。ここで変えた内容は、店舗の入力画面とダッシュボードに反映されます。</p>
+  <p class="meta" id="mstSrc"></p>
+  <div class="panel" id="mstSeed" hidden>
+    <b>初期設定がまだ登録されていません。</b>
+    <p class="note" style="margin-top:4px">最初に1回だけ、初期設定のファイル(seed.json)を読み込みます。店舗・施策・実施店舗・原価率・本部共通費が、準備シートに登録されます。そのあとは、この画面で管理します。</p>
+    <label class="field"><span>初期設定のファイル(seed.json)</span><input type="file" id="mstSeedFile" accept=".json,application/json"></label>
+  </div>
+  <div class="seg" id="mstTabs" role="group" aria-label="マスターの種類">
+    <button type="button" data-t="store" aria-pressed="true">店舗</button>
+    <button type="button" data-t="policy" aria-pressed="false">施策</button>
+    <button type="button" data-t="pairs" aria-pressed="false">実施店舗</button>
+    <button type="button" data-t="hq" aria-pressed="false">本部共通費</button>
+  </div>
+  <div id="mstBody"></div>
+  <p class="msg" id="mstMsg" role="status"></p>
+</main>
+
+<main id="view-costs" hidden>
+  <h2 style="margin-top:18px">販管費CSVの取込(本部)</h2>
+  <p class="note">ぐるなび・食べログ・ホットペッパー・一休・PayPayグルメの費用は、店舗の入力ではなく、経理の月次「部門別科目別補助元帳(販管費)」から取り込みます。月額固定と予約従量は自動で分けます。</p>
+  <div class="panel">
+    <label class="field"><span>販管費ファイル(CSVまたはExcel、複数選択できます)</span>
+      <input type="file" id="impFile" accept=".csv,.xlsx" multiple></label>
+    <ul class="rules">
+      <li>ぐるなび: 「販促プラン」を月額固定、「ネット予約送客手数料」と「予約付与ポイント」を予約従量</li>
+      <li>食べログ(カカクコム): 「PR…(定額)」を月額固定、「ネット予約(従量ランチ・ディナー)」を予約従量</li>
+      <li>ホットペッパー: 予約手数料とポイント付与料を予約従量(リクルートペイメントのカード決済手数料は対象外)</li>
+      <li>一休・PayPayグルメ: システム利用料を予約従量</li>
+      <li>対象外: 各務原、営業本部共通の計上。堺高島屋は堺東(013)に合算</li>
+    </ul>
+    <div class="msg" id="impMsg" role="status"></div>
+  </div>
+  <div id="impPreview"></div>
+  <h2>取込済みの月</h2>
+  <div id="impList"></div>
+</main>
+
+<main id="view-monitor" hidden>
+  <h2 style="margin-top:18px">入力状況モニター(本部)</h2>
+  <p class="note">営業終了後の入力状況です。未入力の店舗を先頭に表示します。「該当なし」は、利用が0件だった日の記録で、未入力とは区別します。通知は設けず、この画面で確認します。</p>
+  <div class="filters"><div class="field"><span>営業日</span><input type="date" id="mDate"></div></div>
+  <div class="kpis" id="monSum" style="margin-top:12px"></div>
+  <div class="tablebox" style="margin-top:12px"><table id="tblMon" style="min-width:560px"></table></div>
+  <h2>修正の依頼</h2>
+  <p class="msg err" id="monMsg"></p>
+  <div class="tablebox"><table id="tblFix" style="min-width:720px"></table></div>
+  <div id="hqEditBox" hidden style="margin-top:12px"></div>
+  <h2>変更履歴</h2>
+  <p class="note">本部が修正を反映すると、変更前と変更後を記録します。</p>
+  <div class="tablebox"><table id="tblLog" style="min-width:720px"></table></div>
+</main>
+
+<main id="view-urls" hidden>
+  <h2 style="margin-top:18px">店舗ごとの入力URL(本部)</h2>
+  <p class="note">店舗ごとに、入力専用のURLを発行します。このURLを開くと、その店舗の施策だけが表示され、他の店舗の入力画面やダッシュボードは見えません。各店舗にはこのURLだけを連絡し、毎日の入力に使ってもらいます。</p>
+  <div class="tablebox"><table id="tblUrls" style="min-width:720px"></table></div>
+  <p class="meta" style="margin-top:8px">試作ではこのページのアドレスの末尾に店舗コードを付けています。本番では、店舗ごとの固有のコードを付けたURLにして、推測されにくくします。</p>
+</main>
+
+<main id="view-input" hidden>
+  <h2 id="storeHead" hidden style="margin-top:18px"></h2>
+  <div id="inputBody">
+  <div id="doneBox" hidden></div>
+  <div id="formWrap">
+  <div class="filters">
+    <div class="field"><span>店舗</span><select id="iStore"></select></div>
+    <div class="field"><span>営業日</span><input type="date" id="iDate"></div>
+  </div>
+  <div class="seg" id="modeTabs" role="group" aria-label="入力方法">
+    <button type="button" data-m="single" aria-pressed="true">1件ずつ</button>
+    <button type="button" data-m="bulk" aria-pressed="false">まとめて</button>
+    <button type="button" data-m="none" aria-pressed="false">該当なし</button>
+  </div>
+  <p class="note" id="modeNote"></p>
+  <div class="panel" id="formBox"></div>
+  </div>
+  <p><span class="msg" id="formMsg" role="status"></span></p>
+  <div id="fixBox" hidden></div>
+  <h2>送信した入力の履歴</h2>
+  <p class="note" id="savedNote">このブラウザに保存されます。送信した入力の間違いは、「修正を依頼」で本部に連絡します。</p>
+  <div class="tablebox"><table id="tblSaved" style="min-width:640px"></table></div>
+  </div>
+</main>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+const D = {"stores":{},"all":[],"policies":[],"pairs":{},"cost":{},"hq":{},"rate":{},"appGroup":[],"real":{"names":{},"salesRows":[],"discRows":[]}};
+const $ = id => document.getElementById(id);
+const yen = n => Math.round(n).toLocaleString('ja-JP');
+const man = n => (n/10000).toLocaleString('ja-JP',{maximumFractionDigits:1});
+let POL = Object.fromEntries(D.policies.map(p=>[p.id,p]));
+const TARGET = {pos:'POSから取込',show:'提示・利用',cpn:'クーポン利用',ticket:'回収した券',rsv:'予約・クーポン経由'};
+const SKEY = 'promo-proto-entries-v1';
+/* ウェブアプリ(GAS)のURL。空のときは試作モード(このブラウザにだけ保存)。公開したURLを入れると、保存・集計が準備シートにつながります。 */
+const CFG = { API: 'https://script.google.com/macros/s/AKfycbydGSJklBEiGs4hXEc6waRdkkh2ylNHTbQJaxNcp5lkp0gmlNYcqsnwwy6K7VMetKMR5w/exec' };
+const remote = { entries: [], costs: {}, range: [], log: [], sales: [], disc: [], months: [], cov: [], masterEmpty: false, masterLoaded: false };
+let HQKEY=''; try{ HQKEY=localStorage.getItem('promo-hq-key')||''; }catch(e){}
+const THIS_MONTH = new Date().toISOString().slice(0,7);
+const DEFMONTH = CFG.API ? THIS_MONTH : '2026-10';
+async function api(method, params, body){
+  if(!/^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec$/.test(CFG.API) && !/^https:\/\/gas\.test\//.test(CFG.API)) throw new Error('この画面は、ウェブアプリのURLがまだ設定されていません。');
+  let j;
+  try{
+    const r = await fetch(method==='GET' ? CFG.API+'?'+new URLSearchParams(params) : CFG.API,
+      method==='GET' ? {} : {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify(body)});
+    j = await r.json();
+  }catch(e){ throw new Error('サーバーにつながりません。通信と、ウェブアプリの公開設定を確認してください。'); }
+  if(!j.ok) throw new Error(j.error||'失敗しました'); return j;
+}
+
+/* ---------- 保存済み入力 ---------- */
+function loadEntries(){ if(CFG.API) return remote.entries; try{ return JSON.parse(localStorage.getItem(SKEY)||'[]'); }catch(e){ return mem; } }
+let mem=[];
+function saveEntries(a){ mem=a; try{ localStorage.setItem(SKEY,JSON.stringify(a)); }catch(e){} }
+
+/* ---------- 売上(実データ) ---------- */
+const VKEY='promo-proto-sales-v1';
+let memV={sales:[],disc:[]}, _ix=null;
+function loadImp(){ try{ const j=JSON.parse(localStorage.getItem(VKEY)||'null'); if(j&&j.sales) return j; }catch(e){} return memV; }
+function saveImp(o){ memV=o; try{ localStorage.setItem(VKEY,JSON.stringify(o)); }catch(e){} _ix=null; }
+function ix(){   // 月 → 店舗 → 日(または 日|券種) の索引
+  if(_ix) return _ix;
+  let S, X;
+  if(CFG.API){ S=remote.sales; X=remote.disc; }
+  else{ const imp=loadImp(), ms=new Map(), md=new Map();
+    for(const r of D.real.salesRows) ms.set(r[0]+'|'+r[1],r); for(const r of imp.sales) ms.set(r[0]+'|'+r[1],r);
+    for(const r of D.real.discRows) md.set(r[0]+'|'+r[1]+'|'+r[2],r); for(const r of imp.disc) md.set(r[0]+'|'+r[1]+'|'+r[2],r);
+    S=[...ms.values()]; X=[...md.values()]; }
+  const s={}, d={};
+  for(const r of S){ const m=r[0].slice(0,7), a=s[m]||(s[m]={}); (a[r[1]]||(a[r[1]]={}))[r[0].slice(8)]=r; }
+  for(const r of X){ const m=r[0].slice(0,7), a=d[m]||(d[m]={}); (a[r[1]]||(a[r[1]]={}))[r[0].slice(8)+'|'+r[2]]=r; }
+  return _ix={s,d};
+}
+const hasSalesFor = m => !!ix().s[m];
+function storeTotals(m){ const o={}, a=ix().s[m]||{};
+  for(const c in a){ const t=[0,0,0,0]; for(const dd in a[c]){ const r=a[c][dd]; t[0]+=r[2]; t[1]+=r[3]; t[2]+=r[4]; t[3]+=r[5]; } o[c]=t; } return o; }
+function dailyOf(m,store){ const a=ix().s[m]||{}, o={};
+  for(const c in a){ if(store!=='all'&&c!==store) continue; for(const dd in a[c]){ const r=a[c][dd], t=o[dd]||(o[dd]=[0,0,0,0]); t[0]+=r[2]; t[1]+=r[3]; t[2]+=r[4]; t[3]+=r[5]; } }
+  return Object.keys(o).length?o:null; }
+function discTotals(m,store){ const a=ix().d[m]||{}, o={};
+  for(const c in a){ if(store!=='all'&&c!==store) continue; for(const k in a[c]){ const r=a[c][k], t=o[r[2]]||(o[r[2]]={name:r[3],contrib:0,disc:0,g:0,c:0}); t.contrib+=r[4]; t.disc+=r[5]; t.g+=r[6]; t.c+=r[7]; } }
+  return o; }
+function lastSalesMonth(){ const k=Object.keys(ix().s).sort(); return k[k.length-1]||null; }
+function unitPrice(code,m){ const t=storeTotals(m||lastSalesMonth()||'')[code]; return t && t[2] ? t[0]/t[2] : 0; }
+
+/* ---------- サンプル入力(固定の疑似乱数) ---------- */
+function hash(s){ let h=2166136261; for(const c of s){ h^=c.charCodeAt(0); h=Math.imul(h,16777619);} return (h>>>0)/4294967295; }
+function sampleEntries(){
+  const out=[];
+  for(const p of D.policies){
+    if(p.target==='pos') continue;
+    const pairs=D.pairs[p.id]||[];
+    let polFee=0; for(const st of pairs){ const c=D.cost[p.id+'|'+st]; if(c) polFee+=c[0]+c[1]; }
+    for(const st of pairs){
+      const r1=hash(p.id+st+'a'), r2=hash(p.id+st+'b'), r3=hash(p.id+st+'c');
+      const c = D.cost[p.id+'|'+st]; const fee = c? c[0]+c[1] : 0;
+      const up = unitPrice(st) || 2500;
+      let people;
+      if(p.amt && fee){ people = Math.max(2, Math.round(fee*(2+r1*20)/up)); }   // 店舗の費用の2〜22倍
+      else if(p.amt && polFee){ people = Math.max(2, Math.round(polFee/pairs.length*(3+hash(p.id)*14)*(0.6+r1*0.8)/up)); }
+      else if(p.amt){ people = Math.round(10 + r1*50); }
+      else { people = Math.round(2 + r1*r1*28); }
+      const groups = Math.max(1, Math.round(people/(2.0+r2*1.2)));
+      const amount = p.amt ? Math.round(people*up*(0.9+r3*0.25)) : null;
+      out.push({date:'2026-10-31',store:st,policy:p.id,groups,people,amount,sample:true});
+    }
+  }
+  return out;
+}
+function scaleHQ(out){
+  // 本部共通費の施策は、プール費用に対する想定倍率に合わせて店舗の数字を調整する
+  const targets={P002:14,P004:9,P021:6};
+  const appPairs=D.appGroup.map(id=>D.pairs[id].length).reduce((a,b)=>a+b,0);
+  for(const e of out){
+    let total=null, n=1;
+    if(targets[e.policy]){ total=D.hq[e.policy]*targets[e.policy]; n=(D.pairs[e.policy]||[]).length; }
+    else if(D.appGroup.includes(e.policy)){ total=D.hq.APP*7.5; n=appPairs; }
+    if(total==null) continue;
+    const up=unitPrice(e.store)||2500;
+    const people=Math.max(2,Math.round(total/n/up*(0.6+hash(e.policy+e.store+'x')*0.8)));
+    e.people=people; e.groups=Math.max(1,Math.round(people/2.3)); e.amount=Math.round(people*up*(0.95+hash(e.policy+e.store+'y')*0.1));
+  }
+  return out;
+}
+const SAMPLE_PLACEHOLDER=0;
+function __unused(){
+  return out;
+}
+const SAMPLE = scaleHQ(sampleEntries());
+
+/* ---------- 費用(販管費CSVの取込) ---------- */
+const CKEY='promo-proto-costs-v1';
+let memC={};
+function loadCosts(){ if(CFG.API) return remote.costs; try{ return JSON.parse(localStorage.getItem(CKEY)||'{}'); }catch(e){ return memC; } }
+function saveCosts(o){ memC=o; try{ localStorage.setItem(CKEY,JSON.stringify(o)); }catch(e){} }
+const PORTAL=['P015','P017','P028','P080','P081'];
+const SVC={P015:'ぐるなび',P017:'食べログ',P028:'PayPayグルメ',P080:'一休',P081:'ホットペッパー'};
+let STORE_OK=new Set([...D.all,'704']);
+function costTable(month){
+  const imp=loadCosts(), out={}, useDefault=month>='2026-10';
+  for(const k in D.cost){ const pid=k.split('|')[0]; if(!PORTAL.includes(pid) && useDefault) out[k]=D.cost[k]; }
+  let source='none';
+  if(imp[month]){ Object.assign(out,imp[month]); source='import'; }
+  else if(useDefault){ for(const k in D.cost){ if(PORTAL.includes(k.split('|')[0])) out[k]=D.cost[k]; } source='avg'; }
+  return {t:out, source};
+}
+function classify(t){
+  if(t.includes('一休')) return /PayPay/i.test(t) ? ['P028',1] : ['P080',1];
+  if(t.includes('ぐるなび')) return [ 'P015', t.includes('プラン')?0:1 ];
+  if(t.includes('カカクコム')) return [ 'P017', t.includes('定額')?0:1 ];
+  if(t.includes('ホットペッパー')) return ['P081',1];
+  return null;
+}
+function num(x){ if(x===null||x===undefined||x==='') return 0; const n=Number(String(x).replace(/,/g,'')); return isNaN(n)?0:n; }
+function ledgerDate(v){
+  if(typeof v==='number'){ const d=new Date(Math.round((v-25569)*86400000)); return [d.getUTCFullYear(), d.getUTCMonth()+1]; }
+  const m=/^R(\d+)\/(\d+)\/(\d+)/.exec(String(v||'').trim()); if(m) return [2018+Number(m[1]), Number(m[2])];
+  const g=/^(\d{4})[\/-](\d+)/.exec(String(v||'').trim()); if(g) return [Number(g[1]),Number(g[2])];
+  return null;
+}
+function parseCSV(text){
+  const rows=[]; let row=[], f='', q=false;
+  for(let i=0;i<text.length;i++){ const c=text[i];
+    if(q){ if(c==='"'){ if(text[i+1]==='"'){ f+='"'; i++; } else q=false; } else f+=c; }
+    else if(c==='"') q=true;
+    else if(c===','){ row.push(f); f=''; }
+    else if(c==='\n'){ row.push(f); rows.push(row); row=[]; f=''; }
+    else if(c==='\r'){ if(text[i+1]!=='\n'){ row.push(f); rows.push(row); row=[]; f=''; } }
+    else f+=c; }
+  if(f!==''||row.length){ row.push(f); rows.push(row); }
+  return rows;
+}
+// ledgerRows: 部門別科目別補助元帳の行(0列目に「0002 千日前本店 726 …」の見出し、明細行は0列目が空)
+function processLedger(rows, acc, st){
+  let hdr=null;
+  for(const r of rows){
+    const c0=r[0];
+    if(c0!==null && c0!==undefined && String(c0).trim()!==''){ hdr=String(c0).trim(); continue; }
+    if(r[6]===null || r[6]===undefined) continue;
+    const t=String(r[6]).normalize('NFKC');
+    const cl=classify(t); if(!cl) continue;
+    st.lines++;
+    const hm=/^(\d{4})\s/.exec(hdr||''); if(!hm){ st.skipped.push('見出し不明: '+t.slice(0,30)); continue; }
+    const code4=hm[1]; let code=code4.replace(/^0+/,'').padStart(3,'0');
+    if(code==='071'){ st.excluded++; continue; }
+    if(code4==='0350'){ st.hq++; continue; }
+    if(!STORE_OK.has(code)){ st.unknown[code4]=(st.unknown[code4]||0)+1; continue; }
+    const amt=num(r[9])-num(r[10]);
+    const net = String(r[7]).trim()==='10' ? amt/1.1 : amt;
+    const pd=ledgerDate(r[3]); if(!pd){ st.skipped.push('日付不明: '+t.slice(0,30)); continue; }
+    let [y,m]=pd; const mm=/(\d{1,2})月分/.exec(t);
+    if(mm){ const sm=Number(mm[1]); if(sm>m) y-=1; m=sm; }
+    const month=y+'-'+String(m).padStart(2,'0');
+    const key=cl[0]+'|'+code;
+    ((acc[month]=acc[month]||{})[key]=acc[month][key]||[0,0])[cl[1]]+=net;
+    st.matched++;
+  }
+}
+async function readLedgerFile(file, acc, st){
+  const buf=await file.arrayBuffer(); let rows;
+  if(/\.csv$/i.test(file.name)) rows=parseCSV(new TextDecoder('shift_jis').decode(buf));
+  else{
+    if(typeof XLSX==='undefined') throw new Error('Excelを読み込む部品が使えません。CSVで保存して取り込んでください。');
+    const wb=XLSX.read(buf,{type:'array'}); rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,raw:true,defval:null});
+  }
+  processLedger(rows,acc,st);
+}
+
+/* ---------- 集計 ---------- */
+function entriesFor(month){
+  let a = loadEntries().filter(e=>e.date.startsWith(month));
+  if(!CFG.API && $('useSample').checked && month==='2026-10') a = a.concat(SAMPLE);
+  return a;
+}
+function aggregate(month, store){
+  const rows={};
+  const get = id => rows[id] || (rows[id]={groups:0,people:0,sales:0,gross:0,fixed:0,varc:0,hq:0,n:0});
+  for(const e of entriesFor(month)){
+    if(store!=='all' && e.store!==store) continue;
+    const p=POL[e.policy]; if(!p) continue;
+    const r=get(e.policy); r.groups+=e.groups; r.people+=e.people; r.n++;
+    const s=(e.amount!=null) ? e.amount : e.people*unitPrice(e.store,month);
+    r.sales+=s; r.gross+=s*(1-(D.rate[e.store]??0.24));
+  }
+  const ct=costTable(month).t;
+  for(const k in ct){
+    const [pid,st]=k.split('|');
+    if(store!=='all' && st!==store) continue;
+    const r=get(pid); r.fixed+=ct[k][0]; r.varc+=ct[k][1];
+  }
+  if(store==='all'){ for(const pid of ['P002','P004','P021']) get(pid).hq += D.hq[pid]; }
+  return rows;
+}
+const judge = x => x==null ? ['none','効果のみ'] : x>=10 ? ['good','達成'] : x>=5 ? ['warn','あと一歩'] : ['bad','未達'];
+const judgeGP = x => x==null ? ['none','―'] : x>=1 ? ['good','黒字'] : ['bad','赤字'];
+
+/* ---------- ダッシュボード ---------- */
+let trendChart=null;
+function css(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+function monthLabel(m){ return m.slice(0,4)+'年'+Number(m.slice(5))+'月'; }
+function refreshMonths(){ monthOptions($('fMonth')); if($('cMonth')) monthOptions($('cMonth')); }
+
+function renderDashboard(){
+  const month=$('fMonth').value, store=$('fStore').value;
+  const rows=aggregate(month,store);
+  const hasSales = hasSalesFor(month);
+  const src=costTable(month).source;
+  $('scopeNote').textContent = store==='all'
+    ? '全店の表示です。本部共通費(アプリ・カンリー・ミライロ・LINE)を含みます。'
+    : '店舗別の表示です。本部共通費は含みません。';
+  $('costSrc').innerHTML = src==='import' ? `<span class="chip good">費用: 販管費CSVの取込結果(${monthLabel(month)}分)</span>`
+    : src==='avg' ? `<span class="chip warn">費用: 2026年4〜9月の平均(仮)</span> <span class="meta">本部の「費用取込」で${monthLabel(month)}分の販管費CSVを取り込むと、実績に置き換わります。</span>`
+    : `<span class="chip none">この月の費用は未取込です</span>`;
+
+  let cost=0, sales=0, gross=0, achieved=0, judged=0;
+  const appIds=D.appGroup, lines=[];
+  const ids=Object.keys(rows).filter(id=>!appIds.includes(id) && (rows[id].sales>0 || rows[id].fixed+rows[id].varc+rows[id].hq>0));
+  ids.sort((a,b)=>{ const ca=rows[a].fixed+rows[a].varc+rows[a].hq, cb=rows[b].fixed+rows[b].varc+rows[b].hq; return (cb-ca)||(rows[b].sales-rows[a].sales); });
+  for(const id of ids){ const p=POL[id]; if(p.target==='pos') continue; const r=rows[id]; const c=r.fixed+r.varc+r.hq;
+    lines.push({p,r,cost:c,sales:r.sales,gross:r.gross,roi:(c>0&&r.n>0)?r.sales/c:null,gp:(c>0&&r.n>0)?r.gross/c:null,noData:r.n===0}); }
+  const app={groups:0,people:0,sales:0,gross:0,fixed:0,varc:0,hq:store==='all'?D.hq.APP:0,n:0};
+  for(const id of appIds){ const r=rows[id]; if(!r) continue; app.groups+=r.groups; app.people+=r.people; app.sales+=r.sales; app.gross+=r.gross; app.fixed+=r.fixed; app.varc+=r.varc; app.n+=r.n; }
+  const appCost=app.fixed+app.varc+app.hq;
+  for(const l of lines){ cost+=l.cost; sales+=l.sales; gross+=l.gross; if(l.roi!=null){ judged++; if(l.roi>=10) achieved++; } }
+  cost+=appCost; sales+=app.sales; gross+=app.gross;
+  const appRoi=(appCost>0&&app.n>0)?app.sales/appCost:null, appGp=(appCost>0&&app.n>0)?app.gross/appCost:null;
+  if(appRoi!=null){ judged++; if(appRoi>=10) achieved++; }
+
+  let tot=0, ly=0;
+  if(hasSales){ const T=storeTotals(month); for(const c in T){ if(store!=='all' && c!==store) continue; tot+=T[c][0]; ly+=T[c][1]; } }
+  const pct=ly?(tot/ly*100):null;
+  const roiAll=cost>0&&sales>0?sales/cost:null, gpAll=cost>0&&sales>0?gross/cost:null;
+  const [jc,jt]=judge(roiAll), [gc,gt]=judgeGP(gpAll);
+  const fx=lines.reduce((a,l)=>a+l.r.fixed,0)+app.fixed, vr=lines.reduce((a,l)=>a+l.r.varc,0)+app.varc;
+  $('kpis').innerHTML = `
+    <div class="kpi"><div class="l">店舗売上(税抜)</div><div class="v">${hasSales? man(tot):'―'}<small>万円</small></div>
+      <div class="s">${hasSales? `前年同曜日比 ${pct.toFixed(1)}%(前年 ${man(ly)}万円)`:'この月の売上CSVは未取込です'}</div></div>
+    <div class="kpi"><div class="l">販促の経由売上</div><div class="v">${man(sales)}<small>万円</small></div>
+      <div class="s">${hasSales&&tot? `店舗売上の ${(sales/tot*100).toFixed(1)}%`:'効果測定の対象施策の合計'}</div></div>
+    <div class="kpi"><div class="l">販促費用(月額)</div><div class="v">${man(cost)}<small>万円</small></div>
+      <div class="s">固定 ${man(fx)}万円 / 予約従量 ${man(vr)}万円</div></div>
+    <div class="kpi main"><div class="l">全体の費用対効果</div><div class="v">${roiAll==null?'―':roiAll.toFixed(1)}<small>倍</small></div>
+      <div class="s"><span class="chip ${jc}">${jt}</span> 判定の基準は10倍(${achieved}/${judged} 施策が達成)</div></div>
+    <div class="kpi main"><div class="l">販促の粗利</div><div class="v">${man(gross)}<small>万円</small></div>
+      <div class="s"><span class="chip ${gc}">${gt}</span> 粗利÷費用 ${gpAll==null?'―':gpAll.toFixed(2)}倍</div></div>`;
+
+  const barCell=(roi)=>{ if(roi==null) return ''; const w=Math.min(100, roi/20*100); return `<span class="bar" aria-hidden="true"><i style="width:${w}%"></i><b style="left:50%"></b></span>`; };
+  const tr=(l, cls='')=>{
+    const [c,t0]=judge(l.roi); const t=(l.roi==null && l.hasCost && l.noData)?'入力待ち':t0;
+    const [g,gt2]=judgeGP(l.gp); const gtt=(l.gp==null && l.hasCost && l.noData)?'入力待ち':gt2;
+    return `<tr class="${cls}"><td>${l.name}${l.sub?`<span class="meta"> ${l.sub}</span>`:''}</td>
+      <td>${l.fixed?yen(l.fixed):'―'}</td><td>${l.varc?yen(l.varc):'―'}</td><td>${l.hq?yen(l.hq):'―'}</td>
+      <td>${yen(l.sales)}</td><td>${l.roi==null?'―':l.roi.toFixed(1)+'倍'}</td><td>${barCell(l.roi)}</td><td><span class="chip ${c}">${t}</span></td>
+      <td>${yen(l.gross)}</td><td>${l.gp==null?'―':l.gp.toFixed(2)+'倍'}</td><td><span class="chip ${g}">${gtt}</span></td></tr>`;
+  };
+  let h=`<thead><tr><th>施策</th><th>月額固定(円)</th><th>予約従量(円)</th><th>本部共通(円)</th><th>経由売上(円)</th><th>費用対効果</th><th>10倍まで</th><th>判定</th><th>粗利(円)</th><th>粗利÷費用</th><th>粗利判定</th></tr></thead><tbody>`;
+  if(appCost>0 || app.sales>0){
+    h+=tr({name:'千房アプリ(5施策の合計)',sub:'営業本部共通',fixed:0,varc:0,hq:appCost,sales:app.sales,gross:app.gross,roi:appRoi,gp:appGp,hasCost:true,noData:app.n===0},'group');
+    for(const id of appIds){ const r=rows[id]; if(!r) continue; h+=tr({name:POL[id].name,sales:r.sales,gross:r.gross,fixed:0,varc:0,hq:0,roi:null,gp:null},'sub').replace('効果のみ','合計で判定'); }
+  }
+  for(const l of lines.filter(l=>l.cost>0)) h+=tr({name:l.p.name,fixed:l.r.fixed,varc:l.r.varc,hq:l.r.hq,sales:l.sales,gross:l.gross,roi:l.roi,gp:l.gp,hasCost:true,noData:l.noData});
+  const freeRows=lines.filter(l=>l.cost===0);
+  const seen=new Set(freeRows.map(l=>l.p.id));
+  const costIds=new Set(lines.filter(l=>l.cost>0).map(l=>l.p.id));
+  const empties=Object.keys(POL).filter(id=>!appIds.includes(id) && POL[id].target!=='pos' && !seen.has(id) && !costIds.has(id) && !(rows[id]&&(rows[id].fixed+rows[id].varc+rows[id].hq)>0))
+    .map(id=>({p:POL[id],r:{fixed:0,varc:0,hq:0},sales:0,gross:0,noData:true}));
+  const allFree=freeRows.concat(empties);
+  if(allFree.length){
+    h+=`<tr class="group"><td colspan="11"><b>費用のない施策(${allFree.length}件)</b><span class="meta"> 値引のみ。費用がないため、経由売上と粗利だけ表示します</span></td></tr>`;
+    for(const l of allFree){
+      h+=`<tr><td>${l.p.name}</td><td>―</td><td>―</td><td>―</td><td>${l.noData?'―':yen(l.sales)}</td><td>―</td><td></td><td><span class="chip none">${l.noData?'入力待ち':'効果のみ'}</span></td><td>${l.noData?'―':yen(l.gross)}</td><td>―</td><td><span class="chip none">―</span></td></tr>`;
+    }
+  }
+  $('tblPolicy').innerHTML=h+'</tbody>';
+
+  let ph=`<thead><tr><th>割引</th><th>利用組数</th><th>売上貢献額(円)</th><th>値引額(円)</th></tr></thead><tbody>`;
+  const posKeys=[['006','社員割引'],['005','千房優待券'],['010','スペシャルサンクス']];
+  if(hasSales){ const dt=discTotals(month,store);
+    for(const [k,nm] of posKeys){ const v=dt[k]||{g:0,contrib:0,disc:0}; ph+=`<tr><td>${nm}</td><td>${yen(v.g)}</td><td>${yen(v.contrib)}</td><td>${yen(v.disc)}</td></tr>`; }
+    ph+=`</tbody>`; }
+  else ph+=`<tr><td colspan="4" class="meta">この月のCSVは未取込です</td></tr></tbody>`;
+  $('tblPos').innerHTML=ph;
+  renderTrend(month, hasSales, store);
+}
+
+function renderTrend(month, hasSales, store){
+  if(trendChart){ trendChart.destroy(); trendChart=null; }
+  const note=$('trendNote'), ttl=$('trendTitle');
+  ttl.textContent = store==='all' ? '売上の推移(全店・日別)' : `売上の推移(${D.stores[store]}・日別)`;
+  if(!hasSales){ note.textContent='この月の売上CSVは未取込です。'; return; }
+  const src = dailyOf(month, store);
+  if(!src){ note.textContent='この店舗の売上データがありません。'; return; }
+  const days=Object.keys(src).sort();
+  const cur=days.map(d=>src[d][0]/10000), prev=days.map(d=>src[d][1]/10000), cust=days.map(d=>src[d][2]);
+  const tc=cur.reduce((a,b)=>a+b,0), tp=prev.reduce((a,b)=>a+b,0), tn=cust.reduce((a,b)=>a+b,0);
+  const best=cur.indexOf(Math.max(...cur)), low=cur.indexOf(Math.min(...cur));
+  note.textContent=`実績と前年同曜日の売上(税抜、万円)。月計 ${man(tc*10000)}万円、前年比 ${(tc/tp*100).toFixed(1)}%、お客様単価 ${yen(tc*10000/tn)}円。最高 ${Number(days[best])}日(${cur[best].toFixed(0)}万円)、最低 ${Number(days[low])}日(${cur[low].toFixed(0)}万円)。`;
+  const lab=days.map(d=>Number(d)+'日');
+  Chart.defaults.font.family=css('--sans'); Chart.defaults.color=css('--muted');
+  trendChart=new Chart($('cTrend'),{type:'line',data:{labels:lab,datasets:[
+    {label:'実績',data:cur,borderColor:css('--chart1'),backgroundColor:css('--chart1'),borderWidth:2.5,pointRadius:0,pointHoverRadius:4,tension:.2},
+    {label:'前年同曜日',data:prev,borderColor:css('--chart2'),backgroundColor:css('--chart2'),borderWidth:2,borderDash:[5,4],pointRadius:0,pointHoverRadius:4,tension:.2}]},
+    options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+      scales:{x:{grid:{display:false},ticks:{maxTicksLimit:10}},y:{beginAtZero:store!=='all',grid:{color:css('--grid')},ticks:{callback:v=>v.toLocaleString('ja-JP')},title:{display:true,text:'万円'}}},
+      plugins:{legend:{position:'top',align:'end',labels:{boxWidth:14,boxHeight:3}},tooltip:{callbacks:{
+        label:c=>`${c.dataset.label}: ${c.parsed.y.toLocaleString('ja-JP',{maximumFractionDigits:0})}万円`,
+        afterBody:items=>{ const i=items[0].dataIndex; return prev[i]? `前年比 ${(cur[i]/prev[i]*100).toFixed(0)}% / お客様数 ${cust[i]}人`:''; }}}}}});
+}
+
+/* ---------- 費用取込(本部) ---------- */
+let parsedCosts=null;
+const svcCell=(v)=> v? `<span class="mono">${v[0]?yen(v[0]):'0'}</span> / <span class="mono">${v[1]?yen(v[1]):'0'}</span>`:'―';
+function renderImportPreview(){
+  const box=$('impPreview');
+  if(!parsedCosts){ box.innerHTML=''; return; }
+  const {acc,st}=parsedCosts, months=Object.keys(acc).sort();
+  let h=`<h2>読み込み結果(まだ保存していません)</h2><p class="note">対象月は、摘要の「○月分」で判定しています。金額は税抜です。</p>
+   <div class="tablebox"><table style="min-width:640px"><thead><tr><th>対象月</th><th>媒体</th><th>月額固定(円)</th><th>予約従量(円)</th><th>店舗数</th></tr></thead><tbody>`;
+  for(const m of months){ for(const pid of PORTAL){
+    let fx=0,vr=0,n=0; for(const k in acc[m]){ if(k.startsWith(pid+'|')){ fx+=acc[m][k][0]; vr+=acc[m][k][1]; n++; } }
+    if(!n) continue; h+=`<tr><td>${monthLabel(m)}</td><td>${SVC[pid]}</td><td>${yen(fx)}</td><td>${yen(vr)}</td><td>${n}</td></tr>`; } }
+  h+=`</tbody></table></div>
+   <p class="meta" style="margin-top:8px">対象の明細 ${st.lines} 行のうち、取り込める ${st.matched} 行。対象外店舗(各務原) ${st.excluded} 行、営業本部共通 ${st.hq} 行、店舗コード不明 ${Object.keys(st.unknown).length?Object.entries(st.unknown).map(([k,v])=>k+':'+v+'行').join(' '):'0'} 行、読めない行 ${st.skipped.length} 行。</p>
+   <div style="margin-top:10px;display:flex;gap:12px;flex-wrap:wrap;align-items:center"><button class="btn" id="btnImport" type="button">この内容で取り込む</button><span class="meta">同じ月がすでにある場合は、その月を置き換えます。</span></div>`;
+  box.innerHTML=h;
+  $('btnImport').onclick=async()=>{
+    const upd={};
+    for(const m of months){ const o={}; for(const k in acc[m]) o[k]=[Math.round(acc[m][k][0]),Math.round(acc[m][k][1])]; upd[m]=o; }
+    try{
+      if(CFG.API){ await api('POST',null,{action:'costs',key:HQKEY,months:upd}); await hqLoad($('fMonth').value||DEFMONTH); }
+      else{ const cur=loadCosts(); Object.assign(cur,upd); saveCosts(cur); }
+    }catch(e){ $('impMsg').textContent='取り込めませんでした。'+e.message; $('impMsg').className='msg err'; return; }
+    parsedCosts=null; $('impMsg').textContent=`${months.length}か月分を取り込みました。ダッシュボードの費用に反映されます。`; $('impMsg').className='msg ok';
+    renderImportPreview(); renderImported(); refreshMonths();
+  };
+}
+function renderImported(){
+  const cur=loadCosts(), ms=Object.keys(cur).sort().reverse();
+  let h='';
+  if(!ms.length) h=`<p class="meta">まだ取り込んだ月はありません。ダッシュボードには、4〜9月の平均(仮)を表示しています。</p>`;
+  else{
+    h=`<div class="tablebox"><table style="min-width:640px"><thead><tr><th>対象月</th><th>ぐるなび</th><th>食べログ</th><th>PayPayグルメ</th><th>一休</th><th>ホットペッパー</th><th></th></tr></thead><tbody>`;
+    for(const m of ms){ h+=`<tr><td>${monthLabel(m)}</td>`;
+      for(const pid of PORTAL){ let fx=0,vr=0,n=0; for(const k in cur[m]){ if(k.startsWith(pid+'|')){ fx+=cur[m][k][0]; vr+=cur[m][k][1]; n++; } }
+        h+=`<td>${n?`固定 ${yen(fx)}<br><span class="meta">従量 ${yen(vr)}(${n}店)</span>`:'―'}</td>`; }
+      h+=`<td><button class="btn ghost" style="padding:2px 10px" data-delc="${m}" type="button">削除</button></td></tr>`; }
+    h+='</tbody></table></div>';
+  }
+  $('impList').innerHTML=h;
+}
+async function onFiles(files){
+  const acc={}, st={lines:0,matched:0,excluded:0,hq:0,unknown:{},skipped:[]};
+  $('impMsg').textContent='読み込み中…'; $('impMsg').className='msg';
+  try{ for(const f of files) await readLedgerFile(f,acc,st); }
+  catch(e){ $('impMsg').textContent='読み込めませんでした。'+e.message; $('impMsg').className='msg err'; return; }
+  if(!st.matched){ $('impMsg').textContent='対象の明細が見つかりませんでした。部門別科目別補助元帳(販管費)のファイルを選んでください。'; $('impMsg').className='msg err'; parsedCosts=null; renderImportPreview(); return; }
+  parsedCosts={acc,st}; $('impMsg').textContent=`${files.length}ファイルを読み込みました。内容を確認して取り込んでください。`; $('impMsg').className='msg ok';
+  renderImportPreview();
+}
+
+/* ---------- 入力フォーム ---------- */
+function applicable(store){
+  return D.policies.filter(p=>p.target!=='pos' && !p.off && (D.pairs[p.id]||[]).includes(store)).map(p=>p.id);
+}
+
+/* ---------- 店舗の入力(1件ずつ / まとめて / 該当なし) ---------- */
+const taxOut = g => Math.round(g/1.1);
+const KIND = {single:'個別', bulk:'まとめ', none:'該当なし'};
+let MODE='single', PENDING=[], DONE=null, FIXID=null;
+const storeRows = st => loadEntries().filter(e=>e.store===st);
+function msgSet(t,c){ const m=$('formMsg'); m.textContent=t||''; m.className='msg'+(c?' '+c:''); }
+function nv(id){ const el=$(id); return el ? el.value : ''; }
+
+function renderForm(){
+  const st=$('iStore').value, ids=applicable(st);
+  $('doneBox').hidden=!DONE; $('formWrap').hidden=!!DONE;
+  for(const b of document.querySelectorAll('#modeTabs button')) b.setAttribute('aria-pressed', String(b.dataset.m===MODE));
+  const note={single:'来店1組ごとに、人数と金額を入力して追加します。複数件をためて、まとめて送信できます。',
+    bulk:'施策ごとに、その日の合計を入力します。空欄の施策は、0件として記録します。',
+    none:'施策の利用が0件の日は、このボタンで記録します。未入力と区別できます。'};
+  $('modeNote').textContent=note[MODE]+' POS登録の割引(社員割引・優待券・STカード)は、入力不要です。';
+  let h='';
+  if(MODE==='single'){
+    h=`<div class="grid2">
+      <div class="field wide"><span>施策</span><select id="sPol">${ids.map(id=>`<option value="${id}">${POL[id].name}</option>`).join('')}</select></div>
+      <div class="field"><span>人数</span><input type="number" id="sPeople" inputmode="numeric" min="1" step="1"></div>
+      <div class="field"><span>金額(税込・円)</span><input type="number" id="sGross" inputmode="numeric" min="0" step="1"></div>
+      <div class="field"><span>税抜(自動・円)</span><input type="number" id="sNet" inputmode="numeric" min="0" step="1"></div>
+      <div class="field wide"><span>メモ(任意)</span><input type="text" id="sMemo" maxlength="100"></div></div>
+      <div class="acts"><button class="btn ghost" id="btnAdd" type="button">追加して続ける</button></div>
+      <h3 class="sub">入力済み(未送信) <span id="pendN"></span></h3><div id="pendList"></div>
+      <div class="acts"><button class="btn" id="btnSend" type="button">送信する</button></div>`;
+  } else if(MODE==='bulk'){
+    h=`<div class="formrow b5 head"><div>施策</div><div>組数</div><div>人数</div><div>税込(円)</div><div>税抜(自動・円)</div></div>`;
+    for(const id of ids){
+      const p=POL[id];
+      h+=`<div class="formrow b5" data-p="${id}"><div class="nm">${p.name}<span class="tag">${TARGET[p.target]}</span></div>
+        <div><span class="lab">組数</span><input type="number" inputmode="numeric" min="0" step="1" id="g_${id}" aria-label="${p.name} 組数"></div>
+        <div><span class="lab">人数</span><input type="number" inputmode="numeric" min="0" step="1" id="n_${id}" aria-label="${p.name} 人数"></div>
+        <div><span class="lab">税込</span><input type="number" inputmode="numeric" min="0" step="1" id="t_${id}" aria-label="${p.name} 税込金額"></div>
+        <div><span class="lab">税抜</span><input type="number" inputmode="numeric" min="0" step="1" id="x_${id}" aria-label="${p.name} 税抜金額"></div></div>`;
+    }
+    h+=`<div class="acts"><button class="btn" id="btnSendBulk" type="button">この内容で送信する</button></div>`;
+  } else {
+    h=`<h3 style="margin:4px 0 8px;font-size:18px">本日、施策の利用は0件でしたか?</h3>
+      <p class="note">0件の日は、下のボタンで記録します。1件でもあった日は、「1件ずつ」か「まとめて」で入力してください。</p>
+      <div class="acts"><button class="btn" id="btnNone" type="button">本日は該当なしで送信</button></div>`;
+  }
+  $('formBox').innerHTML=h;
+  if(MODE==='single') renderPending();
+  msgSet('');
+  renderDone(); renderSaved();
+}
+function renderPending(){
+  $('pendN').textContent=PENDING.length+'件';
+  $('pendList').innerHTML = PENDING.length
+    ? PENDING.map((x,i)=>`<div style="display:flex;gap:10px;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line)"><span style="min-width:0;overflow-wrap:anywhere">${POL[x.policy].name}<span class="meta"> ${x.people}名 ・ 税込${yen(x.gross)}円</span></span><button class="btn ghost" style="padding:2px 10px;flex:none" data-rm="${i}" type="button">取り消す</button></div>`).join('')
+    : `<p class="meta">まだありません。</p>`;
+  $('btnSend').textContent = PENDING.length ? `送信する(${PENDING.length}件)` : '送信する';
+}
+function mkEntry(o){ return Object.assign({fix:''},o); }
+async function submit(entries){
+  const st=$('iStore').value, date=$('iDate').value;
+  msgSet('送信中…');
+  try{
+    if(CFG.API){ await api('POST',null,{action:'save',store:st,token:CTX.token,entries}); await fetchStore(); }
+    else{
+      const cur=loadEntries();
+      for(const e of entries) if(/^[bn]-/.test(e.id) && cur.some(x=>x.id===e.id)) throw new Error('この日はすでに送信済みです。履歴の「修正を依頼」から連絡してください。');
+      let next=cur;
+      if(entries.some(e=>e.mode!=='none')) next=next.filter(x=>!(x.store===st&&x.date===date&&x.mode==='none'));
+      saveEntries(next.concat(entries));
+    }
+  }catch(e){ msgSet('送信できませんでした。'+e.message,'err'); return false; }
+  PENDING=[]; DONE={date,st,none:entries.every(e=>e.mode==='none')}; renderForm(); return true;
+}
+function renderDone(){
+  const box=$('doneBox'); if(!DONE){ box.innerHTML=''; return; }
+  const rows=storeRows(DONE.st).filter(e=>e.date===DONE.date && e.mode!=='none' && e.groups>0);
+  const g=rows.reduce((a,e)=>a+e.groups,0), p=rows.reduce((a,e)=>a+e.people,0), t=rows.reduce((a,e)=>a+(e.gross||0),0);
+  box.innerHTML=`<div class="panel"><h2 style="margin:0 0 6px;color:var(--good)">送信しました</h2>
+    <p class="meta">${DONE.date}の入力</p>
+    ${DONE.none ? `<p style="font-size:20px;margin:10px 0">本日は、該当なしで記録しました</p>` : `<p style="font-size:22px;font-weight:500;margin:10px 0">${g}件 ・ ${p}名 ・ 税込 ${yen(t)}円</p>
+    <div class="tablebox"><table style="min-width:480px"><tbody>${rows.map(e=>`<tr><td>${POL[e.policy].name}</td><td>${e.people}名</td><td>${yen(e.gross||0)}円</td><td>${fixCell(e)}</td></tr>`).join('')}</tbody></table></div>`}
+    <div class="acts"><button class="btn" id="btnMore" type="button">続けて入力する</button></div></div>`;
+}
+const fixCell = e => e.fix ? `<span class="chip warn">修正依頼中</span>` : `<button class="btn ghost" style="padding:2px 10px" data-fix="${e.id}" type="button">修正を依頼</button>`;
+function renderSaved(){
+  const st=$('iStore').value;
+  const a=storeRows(st).filter(e=>e.mode==='none'||e.groups>0).sort((x,y)=>y.date.localeCompare(x.date)).slice(0,40);
+  let h=`<thead><tr><th>営業日</th><th>施策</th><th>区分</th><th>組数</th><th>人数</th><th>税込(円)</th><th>税抜(円)</th><th></th></tr></thead><tbody>`;
+  if(!a.length) h+=`<tr><td colspan="8" class="meta">まだ送信した入力はありません。</td></tr>`;
+  for(const e of a){
+    const none=e.mode==='none';
+    h+=`<tr><td>${e.date}</td><td>${none?'(該当なし)':POL[e.policy].name}</td><td>${KIND[e.mode||'bulk']}</td><td>${none?'0':e.groups}</td><td>${none?'0':e.people}</td><td>${none?'0':(e.gross==null?'―':yen(e.gross))}</td><td>${none?'0':(e.amount==null?'―':yen(e.amount))}</td><td>${none?'':fixCell(e)}</td></tr>`;
+  }
+  $('tblSaved').innerHTML=h+'</tbody>';
+  const fb=$('fixBox');
+  if(FIXID){ const e=loadEntries().find(x=>x.id===FIXID);
+    fb.hidden=!e;
+    if(e) fb.innerHTML=`<div class="panel"><p style="margin:0 0 8px"><b>${e.date} ${POL[e.policy].name}</b>(${e.people}名・税込${yen(e.gross||0)}円)の修正を依頼します</p>
+      <div class="field"><span>どう直したいか(例: 人数は5名、税込は18,400円)</span><input type="text" id="fixNote" maxlength="200"></div>
+      <div class="acts"><button class="btn" id="btnFixSend" type="button">本部に依頼する</button><button class="btn ghost" id="btnFixCancel" type="button">やめる</button></div></div>`;
+  } else { fb.hidden=true; fb.innerHTML=''; }
+}
+async function sendFix(){
+  const note=nv('fixNote').trim(); if(!note){ msgSet('直し方を入力してください。','err'); return; }
+  try{
+    if(CFG.API){ await api('POST',null,{action:'fixreq',store:CTX.code,token:CTX.token,id:FIXID,note}); await fetchStore(); }
+    else saveEntries(loadEntries().map(e=>e.id===FIXID?Object.assign({},e,{fix:note}):e));
+  }catch(e){ msgSet('依頼できませんでした。'+e.message,'err'); return; }
+  FIXID=null; msgSet('修正を依頼しました。本部が確認して反映します。','ok'); renderDone(); renderSaved();
+}
+function numOrNull(s){ return s===''||s===null ? null : Number(s); }
+function addSingle(){
+  const policy=nv('sPol'), people=numOrNull(nv('sPeople')), gross=numOrNull(nv('sGross')), net=numOrNull(nv('sNet'));
+  if(!policy||people===null||people<1){ msgSet('人数を1以上で入力してください。','err'); return; }
+  if(gross===null||gross<0){ msgSet('税込の金額を入力してください。','err'); return; }
+  const amount = net===null ? taxOut(gross) : net;
+  PENDING.push({policy,people,gross,amount,over:amount!==taxOut(gross),memo:nv('sMemo').trim()});
+  for(const id of ['sPeople','sGross','sNet','sMemo']){ const el=$(id); el.value=''; el.dataset.over=''; }
+  msgSet(''); renderPending();
+}
+async function sendSingle(){
+  if(!PENDING.length){ msgSet('追加した入力がありません。','err'); return; }
+  const st=$('iStore').value, date=$('iDate').value;
+  if(!date){ msgSet('営業日を入力してください。','err'); return; }
+  await submit(PENDING.map((x,i)=>mkEntry({id:'s-'+Date.now()+'-'+i+'-'+Math.floor(Math.random()*1e4),date,store:st,policy:x.policy,mode:'single',groups:1,people:x.people,gross:x.gross,amount:x.amount,over:x.over,memo:x.memo})));
+}
+async function sendBulk(){
+  const st=$('iStore').value, date=$('iDate').value;
+  if(!date){ msgSet('営業日を入力してください。','err'); return; }
+  const out=[]; let any=false;
+  for(const id of applicable(st)){
+    const g=nv('g_'+id), n=nv('n_'+id), t=nv('t_'+id), x=nv('x_'+id), name=POL[id].name;
+    if(g===''&&n===''&&t===''&&x===''){ out.push(mkEntry({id:`b-${date}-${st}-${id}`,date,store:st,policy:id,mode:'bulk',groups:0,people:0,gross:0,amount:0,over:false,memo:''})); continue; }
+    if(g===''||n===''||t===''){ msgSet(`${name}: 組数・人数・税込金額をすべて入力してください。`,'err'); return; }
+    if(+n<+g){ msgSet(`${name}: 人数が組数より少なくなっています。`,'err'); return; }
+    const amount = x==='' ? taxOut(+t) : +x; any=true;
+    out.push(mkEntry({id:`b-${date}-${st}-${id}`,date,store:st,policy:id,mode:'bulk',groups:+g,people:+n,gross:+t,amount,over:amount!==taxOut(+t),memo:''}));
+  }
+  if(!any){ msgSet('入力がありません。利用がなかった日は、「該当なし」で送信してください。','err'); return; }
+  await submit(out);
+}
+async function sendNone(){
+  const st=$('iStore').value, date=$('iDate').value;
+  if(!date){ msgSet('営業日を入力してください。','err'); return; }
+  if(storeRows(st).some(e=>e.date===date && e.mode!=='none')){ msgSet('この日は、すでに入力があります。「該当なし」にはできません。','err'); return; }
+  await submit([mkEntry({id:`n-${date}-${st}`,date,store:st,policy:'',mode:'none',groups:0,people:0,gross:0,amount:0,over:false,memo:''})]);
+}
+
+/* ---------- 本部: 入力状況モニターと修正依頼 ---------- */
+const LKEY='promo-proto-changes-v1'; let memL=[];
+function loadLog(){ if(CFG.API) return remote.log||[]; try{ return JSON.parse(localStorage.getItem(LKEY)||'[]'); }catch(e){ return memL; } }
+function pushLog(x){ memL=loadLog().concat([x]); try{ localStorage.setItem(LKEY,JSON.stringify(memL)); }catch(e){} }
+function addDays(s,n){ const d=new Date(s+'T00:00:00Z'); d.setUTCDate(d.getUTCDate()+n); return d.toISOString().slice(0,10); }
+function todayJST(){ return new Date(Date.now()+9*3600000).toISOString().slice(0,10); }
+const expectedStores = () => D.all.filter(c=>applicable(c).length>0);
+function monRows(){ return CFG.API ? remote.range : loadEntries(); }
+function monStatus(rows, st, date){
+  const r=rows.filter(e=>e.store===st && e.date===date);
+  if(r.some(e=>e.mode!=='none')) return ['done', r.filter(e=>e.mode!=='none').reduce((a,e)=>a+e.groups,0)];
+  if(r.length) return ['none',0];
+  if(!CFG.API && $('useSample').checked){ const q=hash(st+date); return q<0.1?['missing',0]:q<0.25?['none',0]:['done',Math.round(3+hash(st+date+'n')*12)]; }
+  return ['missing',0];
+}
+const STAT = {done:['good','入力済み'], none:['none','該当なし'], missing:['bad','未入力']};
+async function hqRange(from,to){
+  if(!CFG.API) return true;
+  if(!HQKEY){ needKey(); return false; }
+  try{ const j=await api('GET',{action:'range',key:HQKEY,from,to}); remote.range=j.entries; remote.log=j.log; $('hqBar').hidden=true; return true; }
+  catch(e){ HQKEY=''; try{ localStorage.removeItem('promo-hq-key'); }catch(x){} needKey('開けませんでした。'+e.message); return false; }
+}
+let HQEDIT=null;
+function renderMonitor(){
+  const date=$('mDate').value, rows=monRows();
+  const list=expectedStores().map(st=>{ const [s,n]=monStatus(rows,st,date); let miss=0;
+    for(let i=0;i<7;i++) if(monStatus(rows,st,addDays(date,-i))[0]==='missing') miss++; return {st,s,n,miss}; });
+  const ord={missing:0,none:1,done:2}; list.sort((a,b)=>ord[a.s]-ord[b.s]||b.miss-a.miss||a.st.localeCompare(b.st));
+  const cnt=k=>list.filter(x=>x.s===k).length;
+  $('monSum').innerHTML=`<div class="kpi"><div class="l">入力済み</div><div class="v">${cnt('done')}<small>店</small></div></div>
+    <div class="kpi"><div class="l">該当なし</div><div class="v">${cnt('none')}<small>店</small></div></div>
+    <div class="kpi main"><div class="l">未入力</div><div class="v">${cnt('missing')}<small>店</small></div></div>`;
+  $('tblMon').innerHTML=`<thead><tr><th>店舗</th><th>この日の状況</th><th>この日の件数</th><th>直近7日の未入力</th></tr></thead><tbody>`+
+    list.map(x=>`<tr><td>${x.st} ${D.stores[x.st]}</td><td><span class="chip ${STAT[x.s][0]}">${STAT[x.s][1]}</span></td><td>${x.s==='done'?x.n+'件':'―'}</td><td>${x.miss}日</td></tr>`).join('')+'</tbody>';
+  const fx=rows.filter(e=>e.fix);
+  let h=`<thead><tr><th>営業日</th><th>店舗</th><th>施策</th><th>現在の入力</th><th>依頼の内容</th><th></th></tr></thead><tbody>`;
+  if(!fx.length) h+=`<tr><td colspan="6" class="meta">修正の依頼はありません。</td></tr>`;
+  for(const e of fx) h+=`<tr><td>${e.date}</td><td>${D.stores[e.store]||e.store}</td><td>${POL[e.policy]?POL[e.policy].name:''}</td><td>${e.groups}組・${e.people}名・税込${yen(e.gross||0)}円</td><td style="white-space:normal">${esc(e.fix)}</td>
+    <td><button class="btn ghost" style="padding:2px 10px" data-hqedit="${e.id}" type="button">修正して反映</button> <button class="btn ghost" style="padding:2px 10px" data-hqno="${e.id}" type="button">対応なし</button></td></tr>`;
+  $('tblFix').innerHTML=h+'</tbody>';
+  const eb=$('hqEditBox'), cur=HQEDIT && rows.find(x=>x.id===HQEDIT);
+  eb.hidden=!cur;
+  if(cur) eb.innerHTML=`<div class="panel"><p style="margin:0 0 8px"><b>${cur.date} ${D.stores[cur.store]||cur.store} ${POL[cur.policy].name}</b>を修正して反映します</p>
+    <div class="grid2"><div class="field"><span>組数</span><input type="number" id="eG" value="${cur.groups}"></div><div class="field"><span>人数</span><input type="number" id="eP" value="${cur.people}"></div>
+    <div class="field"><span>税込(円)</span><input type="number" id="eT" value="${cur.gross||0}"></div><div class="field"><span>税抜(円)</span><input type="number" id="eX" value="${cur.amount||0}"></div></div>
+    <div class="acts"><button class="btn" id="btnHqApply" type="button">反映する</button><button class="btn ghost" id="btnHqCancel" type="button">やめる</button></div></div>`;
+  const lg=loadLog().slice(-8).reverse();
+  $('tblLog').innerHTML=`<thead><tr><th>日時</th><th>営業日・店舗・施策</th><th>変更前</th><th>変更後</th><th>依頼の内容</th></tr></thead><tbody>`+
+    (lg.length? lg.map(l=>`<tr><td>${esc(l.at)}</td><td>${esc(l.what || (l.date+' '+(D.stores[l.store]||l.store)+' '+(POL[l.policy]?POL[l.policy].name:'')))}</td><td>${esc(l.before)}</td><td>${esc(l.after)}</td><td style="white-space:normal">${esc(l.note||'')}</td></tr>`).join('') : `<tr><td colspan="5" class="meta">まだありません。</td></tr>`)+'</tbody>';
+}
+async function hqApply(){
+  const rows=monRows(), cur=rows.find(x=>x.id===HQEDIT); if(!cur) return;
+  const nw={groups:+nv('eG'),people:+nv('eP'),gross:+nv('eT'),amount:+nv('eX')};
+  const fmt=o=>`${o.groups}組・${o.people}名・税込${yen(o.gross||0)}円・税抜${yen(o.amount||0)}円`;
+  try{
+    if(CFG.API){ await api('POST',null,Object.assign({action:'hqEdit',key:HQKEY,id:cur.id},nw)); await hqRange(addDays($('mDate').value,-6),$('mDate').value); }
+    else{
+      saveEntries(loadEntries().map(e=>e.id===cur.id?Object.assign({},e,nw,{fix:'',over:nw.amount!==taxOut(nw.gross)}):e));
+      pushLog({at:new Date(Date.now()+9*3600000).toISOString().slice(0,16).replace('T',' '),what:`${cur.date} ${D.stores[cur.store]} ${POL[cur.policy].name}`,before:fmt(cur),after:fmt(nw),note:cur.fix});
+    }
+  }catch(e){ $('monMsg').textContent='反映できませんでした。'+e.message; return; }
+  HQEDIT=null; renderMonitor();
+}
+async function hqDismiss(id){
+  try{
+    if(CFG.API){ await api('POST',null,{action:'hqDismiss',key:HQKEY,id}); await hqRange(addDays($('mDate').value,-6),$('mDate').value); }
+    else saveEntries(loadEntries().map(e=>e.id===id?Object.assign({},e,{fix:''}):e));
+  }catch(e){ return; }
+  renderMonitor();
+}
+
+/* ---------- 画面切替 ---------- */
+/* ---------- マスター(店舗・施策・実施店舗・本部共通費) ---------- */
+const MKEY='promo-proto-master-v1';
+function rebuildMasters(){
+  POL=Object.fromEntries(D.policies.map(p=>[p.id,p]));
+  STORE_OK=new Set([...D.all,'704']);
+}
+function fillStoreSelects(){
+  const opts=D.all.map(c=>`<option value="${c}">${c} ${D.stores[c]||''}</option>`).join('');
+  const f=$('fStore'), i=$('iStore'); if(!f||!i) return;
+  const cf=f.value, ci=i.value;
+  f.innerHTML='<option value="all">全店</option>'+opts; i.innerHTML=opts;
+  if(cf && (cf==='all'||D.all.includes(cf))) f.value=cf;
+  if(ci && D.all.includes(ci)) i.value=ci;
+}
+function applyMaster(m){
+  for(const k of ['stores','all','rate','policies','pairs','hq','appGroup']) if(m[k]!==undefined && m[k]!==null) D[k]=m[k];
+  if(m.cost){ const keep={}; for(const k in D.cost) if(PORTAL.includes(k.split('|')[0])) keep[k]=D.cost[k]; D.cost=Object.assign(keep,m.cost); }
+  rebuildMasters(); fillStoreSelects();
+}
+function fixedCosts(){ const o={}; for(const k in D.cost) if(!PORTAL.includes(k.split('|')[0])) o[k]=D.cost[k]; return o; }
+function masterSnapshot(){ return {stores:D.stores,all:D.all,rate:D.rate,policies:D.policies,pairs:D.pairs,hq:D.hq,appGroup:D.appGroup,cost:fixedCosts()}; }
+function loadMasterLocal(){ try{ const j=JSON.parse(localStorage.getItem(MKEY)||'null'); if(j) applyMaster(j); }catch(e){} }
+async function saveMaster(){
+  if(CFG.API) await api('POST',null,{action:'masterSave',key:HQKEY,master:masterSnapshot()});
+  else{ try{ localStorage.setItem(MKEY,JSON.stringify(masterSnapshot())); }catch(e){} }
+  rebuildMasters(); fillStoreSelects();
+}
+let MST='store', MSEL='P001';
+const esc = s => String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function mstMsg(t,c){ const m=$('mstMsg'); m.textContent=t||''; m.className='msg'+(c?' '+c:''); }
+function renderMasters(){
+  for(const b of document.querySelectorAll('#mstTabs button')) b.setAttribute('aria-pressed',String(b.dataset.t===MST));
+  const box=$('mstBody'); let h='';
+  if(MST==='store'){
+    const codes=Object.keys(D.stores).sort();
+    h=`<p class="note">店舗の名前と、標準原価率(粗利の計算に使います)を管理します。「入力対象」にした店舗に、入力用URLが発行されます。閉店や対象外の店舗は、チェックを外します(過去の入力は残ります)。</p>
+    <div class="tablebox"><table style="min-width:640px"><thead><tr><th>店舗コード</th><th>店舗名</th><th>入力対象</th><th>標準原価率(%)</th><th>入力する施策数</th></tr></thead><tbody>`;
+    for(const c of codes){ h+=`<tr><td>${c}</td><td><input type="text" data-sn="${c}" value="${esc(D.stores[c])}" style="width:100%;min-width:200px" aria-label="${c}の店舗名"></td>
+      <td><input type="checkbox" data-sa="${c}" ${D.all.includes(c)?'checked':''} aria-label="${c}を入力対象にする"></td>
+      <td><input type="number" step="0.5" min="1" max="99" data-sr="${c}" value="${Math.round((D.rate[c]??0.24)*1000)/10}" style="width:90px" aria-label="${c}の標準原価率"></td>
+      <td>${D.all.includes(c)?applicable(c).length:'―'}</td></tr>`; }
+    h+=`</tbody></table></div>
+    <h2>店舗を追加する</h2>
+    <div class="filters"><div class="field"><span>店舗コード(3桁)</span><input type="text" id="nsCode" maxlength="3" style="width:90px" inputmode="numeric"></div>
+      <div class="field"><span>店舗名</span><input type="text" id="nsName" style="min-width:220px"></div>
+      <div class="field"><span>標準原価率(%)</span><input type="number" id="nsRate" value="24" step="0.5" style="width:90px"></div>
+      <button class="btn ghost" id="nsAdd" type="button">追加</button></div>
+    <p class="meta">追加した店舗は、「実施店舗」の画面で、実施する施策にチェックを入れると入力画面に出ます。</p>`;
+  } else if(MST==='policy'){
+    h=`<p class="note">販促の施策を管理します。「対象」は何を数えるか、「金額入力」は店舗が売上金額を入力するかどうかです(POS登録の割引は入力しません)。「停止」にすると、店舗の入力画面に出ません(過去の入力は残ります)。「アプリ合算」は、千房アプリのように複数の施策を合計して判定するものです。</p>
+    <div class="tablebox"><table style="min-width:860px"><thead><tr><th>施策ID</th><th>施策名</th><th>対象</th><th>費用負担</th><th>金額入力</th><th>停止</th><th>アプリ合算</th><th>実施店舗数</th></tr></thead><tbody>`;
+    for(const p of D.policies){
+      h+=`<tr><td>${p.id}</td><td><input type="text" data-pn="${p.id}" value="${esc(p.name)}" style="width:100%;min-width:220px" aria-label="${p.id}の施策名"></td>
+      <td><select data-pt="${p.id}" style="min-width:150px" aria-label="${p.id}の対象">${Object.entries(TARGET).map(([k,v])=>`<option value="${k}" ${p.target===k?'selected':''}>${v}</option>`).join('')}</select></td>
+      <td><select data-pb="${p.id}" style="min-width:80px"><option ${p.burden==='店舗'?'selected':''}>店舗</option><option ${p.burden==='本部'?'selected':''}>本部</option></select></td>
+      <td><input type="checkbox" data-pa="${p.id}" ${p.amt?'checked':''} aria-label="${p.id}の金額入力"></td>
+      <td><input type="checkbox" data-po="${p.id}" ${p.off?'checked':''} aria-label="${p.id}を停止する"></td>
+      <td><input type="checkbox" data-pg="${p.id}" ${D.appGroup.includes(p.id)?'checked':''} aria-label="${p.id}をアプリ合算にする"></td>
+      <td>${(D.pairs[p.id]||[]).length}</td></tr>`; }
+    h+=`</tbody></table></div>
+    <h2>施策を追加する</h2>
+    <div class="filters"><div class="field"><span>施策名</span><input type="text" id="npName" style="min-width:240px"></div>
+      <div class="field"><span>対象</span><select id="npTarget">${Object.entries(TARGET).filter(([k])=>k!=='pos').map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}</select></div>
+      <div class="field"><span>費用負担</span><select id="npBurden"><option>店舗</option><option>本部</option></select></div>
+      <button class="btn ghost" id="npAdd" type="button">追加</button></div>
+    <p class="meta">追加した施策は、「実施店舗」の画面で、実施する店舗にチェックを入れると入力画面に出ます。費用は、販管費CSVの取込、または「本部共通費」で設定します。</p>`;
+  } else if(MST==='pairs'){
+    const pols=D.policies.filter(p=>p.target!=='pos');
+    if(!pols.some(p=>p.id===MSEL)) MSEL=(pols[0]||{}).id;
+    const cur=D.pairs[MSEL]||[];
+    h=`<p class="note">施策ごとに、実施している店舗を選びます。チェックした店舗の入力画面に、その施策が表示されます。</p>
+    <div class="filters"><div class="field"><span>施策</span><select id="mxPol" style="min-width:320px">${pols.map(p=>`<option value="${p.id}" ${p.id===MSEL?'selected':''}>${p.id} ${esc(p.name)}${p.off?'(停止中)':''}</option>`).join('')}</select></div>
+      <button class="btn ghost" id="mxAll" type="button">全店にチェック</button><button class="btn ghost" id="mxNone" type="button">すべて外す</button></div>
+    <div class="grid2" id="mxList">${D.all.map(c=>`<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" data-mx="${c}" ${cur.includes(c)?'checked':''}> ${c} ${esc(D.stores[c])}</label>`).join('')}</div>`;
+  } else {
+    h=`<p class="note">店舗の入力ではなく、本部が負担する月額の共通費です(税抜)。千房アプリは、5施策の合計に対して費用対効果を判定します。販管費CSVで取り込む費用(グルメサイトなど)は、「費用取込」で管理します。</p>
+    <div class="tablebox"><table style="min-width:520px"><thead><tr><th>項目</th><th>月額(円・税抜)</th></tr></thead><tbody>`;
+    const lab={P002:'カンリー(フクリー)',P004:'ミライロ',P021:'LINE公式クーポン',APP:'千房アプリ(営業本部共通・5施策の合計)'};
+    for(const k of Object.keys(D.hq)) h+=`<tr><td>${lab[k]||(POL[k]?POL[k].name:k)}</td><td><input type="number" data-hq="${k}" value="${D.hq[k]}" min="0" step="1" style="width:160px" aria-label="${lab[k]||k}の月額"></td></tr>`;
+    h+=`</tbody></table></div>
+    <h2>店舗が負担する月額の固定費</h2>
+    <p class="note">販管費CSVで取り込むもの(グルメサイト等)以外の、店舗ごとの月額の費用です(税抜)。施策と店舗を選んで追加します。費用がない施策は、登録しません。</p>
+    <div class="tablebox"><table style="min-width:620px"><thead><tr><th>施策</th><th>店舗</th><th>月額固定(円)</th><th>削除</th></tr></thead><tbody>`;
+    const fk=Object.keys(fixedCosts()).sort();
+    if(!fk.length) h+=`<tr><td colspan="4" class="meta">まだ登録がありません</td></tr>`;
+    for(const k of fk){ const [pid,st]=k.split('|'); h+=`<tr><td>${esc((POL[pid]||{}).name||pid)}</td><td>${st} ${esc(D.stores[st]||'')}</td><td><input type="number" data-fc="${k}" value="${D.cost[k][0]}" min="0" style="width:140px" aria-label="${k}の月額固定"></td><td><input type="checkbox" data-fcd="${k}" aria-label="${k}を削除する"></td></tr>`; }
+    h+=`</tbody></table></div>
+    <div class="filters"><div class="field"><span>施策</span><select id="fcPol" style="min-width:240px">${D.policies.filter(p=>p.target!=='pos'&&!PORTAL.includes(p.id)).map(p=>`<option value="${p.id}">${p.id} ${esc(p.name)}</option>`).join('')}</select></div>
+      <div class="field"><span>店舗</span><select id="fcSt" style="min-width:220px">${D.all.map(c=>`<option value="${c}">${c} ${esc(D.stores[c])}</option>`).join('')}</select></div>
+      <div class="field"><span>月額固定(円)</span><input type="number" id="fcAmt" min="0" style="width:140px"></div>
+      <button class="btn ghost" id="fcAdd" type="button">追加</button></div>`;
+  }
+  box.innerHTML=h+`<div class="acts"><button class="btn" id="mstSave" type="button">この内容で保存する</button><span class="meta">${CFG.API?'準備シートに保存します。保存すると、店舗の入力画面にも反映されます。':'試作では、このブラウザにだけ保存します。'}</span></div>`;
+  $('mstSrc').textContent = CFG.API ? (remote.masterEmpty ? '' : '準備シートに登録された内容を表示しています。') : '';
+  $('mstSeed').hidden = !(CFG.API && remote.masterEmpty);
+  $('mstTabs').hidden = $('mstBody').hidden = !$('mstSeed').hidden;
+}
+function readMasterForm(){
+  const m=masterSnapshot(), now=JSON.parse(JSON.stringify(m));
+  if(MST==='store'){
+    document.querySelectorAll('[data-sn]').forEach(el=>{ const nm=el.value.trim(); if(!nm) throw new Error(el.dataset.sn+'の店舗名を入力してください'); now.stores[el.dataset.sn]=nm; });
+    now.all=[...document.querySelectorAll('[data-sa]')].filter(el=>el.checked).map(el=>el.dataset.sa).sort();
+    document.querySelectorAll('[data-sr]').forEach(el=>{ const r=Number(el.value); if(!(r>=1&&r<=99)) throw new Error(el.dataset.sr+'の原価率は1〜99%で入力してください'); now.rate[el.dataset.sr]=Math.round(r*10)/1000; });
+  } else if(MST==='policy'){
+    document.querySelectorAll('[data-pn]').forEach(el=>{ const p=now.policies.find(x=>x.id===el.dataset.pn); const nm=el.value.trim(); if(!nm) throw new Error(p.id+'の施策名を入力してください'); p.name=nm; });
+    document.querySelectorAll('[data-pt]').forEach(el=>{ now.policies.find(x=>x.id===el.dataset.pt).target=el.value; });
+    document.querySelectorAll('[data-pb]').forEach(el=>{ now.policies.find(x=>x.id===el.dataset.pb).burden=el.value; });
+    document.querySelectorAll('[data-pa]').forEach(el=>{ const p=now.policies.find(x=>x.id===el.dataset.pa); p.amt=(p.target==='pos'||!el.checked)?0:1; });
+    document.querySelectorAll('[data-po]').forEach(el=>{ now.policies.find(x=>x.id===el.dataset.po).off=el.checked; });
+    now.appGroup=[...document.querySelectorAll('[data-pg]')].filter(el=>el.checked).map(el=>el.dataset.pg);
+  } else if(MST==='pairs'){
+    now.pairs[MSEL]=[...document.querySelectorAll('[data-mx]')].filter(el=>el.checked).map(el=>el.dataset.mx);
+  } else {
+    document.querySelectorAll('[data-hq]').forEach(el=>{ const v=Number(el.value); if(!(v>=0)) throw new Error('月額は0以上の数で入力してください'); now.hq[el.dataset.hq]=Math.round(v); });
+    const c={}; document.querySelectorAll('[data-fc]').forEach(el=>{ const k=el.dataset.fc, v=Number(el.value); if(!(v>=0)) throw new Error('固定費は0以上の数で入力してください'); const del=document.querySelector(`[data-fcd="${k}"]`); if(!del||!del.checked) c[k]=[Math.round(v),0]; });
+    now.cost=c;
+  }
+  return now;
+}
+async function saveMasterForm(){
+  let now; try{ now=readMasterForm(); }catch(e){ mstMsg(e.message,'err'); return; }
+  const before=masterSnapshot(); applyMaster(now);
+  try{ await saveMaster(); remote.masterEmpty=false; mstMsg('保存しました。','ok'); }
+  catch(e){ applyMaster(before); mstMsg('保存できませんでした。'+e.message,'err'); return; }
+  renderMasters(); mstMsg('保存しました。','ok');
+}
+function addFixedCost(){
+  const pid=$('fcPol').value, st=$('fcSt').value, v=Number($('fcAmt').value);
+  if(!pid||!st) return mstMsg('施策と店舗を選んでください。','err');
+  if(!($('fcAmt').value!=='' && v>=0)) return mstMsg('月額固定は0以上の数で入力してください。','err');
+  const k=pid+'|'+st, now=masterSnapshot(); now.cost=Object.assign({},now.cost,{[k]:[Math.round(v),0]});
+  const before=masterSnapshot(); applyMaster(now);
+  saveMaster().then(()=>{ renderMasters(); mstMsg('固定費を追加しました。','ok'); }).catch(e=>{ applyMaster(before); mstMsg('追加できませんでした。'+e.message,'err'); });
+}
+async function loadSeed(file){
+  try{
+    const j=JSON.parse(await file.text());
+    if(!j.stores||!j.policies||!j.pairs) throw new Error('初期設定のファイルではありません');
+    applyMaster(j); await saveMaster(); remote.masterEmpty=false; renderMasters(); mstMsg('初期設定を読み込み、準備シートに登録しました。','ok'); route();
+  }catch(e){ mstMsg('読み込めませんでした。'+e.message,'err'); }
+}
+function addStoreMaster(){
+  const c=$('nsCode').value.trim(), nm=$('nsName').value.trim(), r=Number($('nsRate').value);
+  if(!/^\d{3}$/.test(c)) return mstMsg('店舗コードは3桁の数字で入力してください。','err');
+  if(D.stores[c]) return mstMsg('その店舗コードは、すでにあります。','err');
+  if(!nm) return mstMsg('店舗名を入力してください。','err');
+  if(!(r>=1&&r<=99)) return mstMsg('標準原価率は1〜99%で入力してください。','err');
+  const now=masterSnapshot(); now.stores=Object.assign({},now.stores,{[c]:nm}); now.rate=Object.assign({},now.rate,{[c]:Math.round(r*10)/1000}); now.all=[...now.all,c].sort();
+  const before=masterSnapshot(); applyMaster(now);
+  saveMaster().then(()=>{ renderMasters(); mstMsg(c+' '+nm+' を追加しました。実施する施策は、「実施店舗」で選んでください。','ok'); })
+   .catch(e=>{ applyMaster(before); mstMsg('追加できませんでした。'+e.message,'err'); });
+}
+function addPolicyMaster(){
+  const nm=$('npName').value.trim(); if(!nm) return mstMsg('施策名を入力してください。','err');
+  const next='P'+String(Math.max(...D.policies.map(p=>Number(p.id.slice(1))||0))+1).padStart(3,'0');
+  const now=masterSnapshot(); now.policies=D.policies.concat([{id:next,name:nm,target:$('npTarget').value,amt:1,burden:$('npBurden').value}]); now.pairs=Object.assign({},now.pairs,{[next]:[]});
+  const before=masterSnapshot(); applyMaster(now);
+  saveMaster().then(()=>{ MSEL=next; renderMasters(); mstMsg(next+' '+nm+' を追加しました。実施する店舗は、「実施店舗」で選んでください。','ok'); })
+   .catch(e=>{ applyMaster(before); mstMsg('追加できませんでした。'+e.message,'err'); });
+}
+
+/* ---------- 店舗別の比較 ---------- */
+function salesMonths(){ const s=new Set(Object.keys(ix().s)); for(const m of Object.keys(ix().d)) s.add(m); for(const m of (remote.months||[])) s.add(m); return s; }
+function monthsAll(){ const set=new Set([DEFMONTH,...Object.keys(loadCosts()),...salesMonths()]); return [...set].sort().reverse(); }
+function monthOptions(sel,keep){
+  const sm=salesMonths(), cur=keep||sel.value||DEFMONTH, ms=monthsAll();
+  sel.innerHTML=ms.map(m=>`<option value="${m}">${monthLabel(m)}${sm.has(m)?'(売上取込済み)':''}</option>`).join('');
+  sel.value=ms.includes(cur)?cur:ms[0];
+}
+const CMP={key:'code',dir:1};
+function cmpRows(month){
+  const T=storeTotals(month), ents=entriesFor(month), dset={};
+  for(const e of ents){ (dset[e.store]||(dset[e.store]=new Set())).add(e.date); }
+  return D.all.map(code=>{
+    const rows=aggregate(month,code), t=T[code]||null;
+    let via=0, fs=0, fg=0, fc=0;
+    for(const id in rows){ const p=POL[id]; if(!p||p.target==='pos') continue; const r=rows[id], c=r.fixed+r.varc;
+      via+=r.sales; if(c>0){ fs+=r.sales; fg+=r.gross; fc+=c; } }
+    const a=(ix().s[month]||{})[code]; const biz=a?Object.values(a).filter(r=>r[2]>0).length:0;
+    return {code,name:D.stores[code]||'',sales:t?t[0]:null,ly:t?t[1]:null,cust:t?t[2]:null,
+      up:t&&t[2]?t[0]/t[2]:null, yoy:t&&t[1]?t[0]/t[1]*100:null, via, share:t&&t[0]?via/t[0]*100:null,
+      cost:fc, fs, fg, roi:fc>0&&fs>0?fs/fc:null, gp:fc>0&&fs>0?fg/fc:null, days:(dset[code]||new Set()).size, biz};
+  });
+}
+const CMPCOLS=[['code','店舗',0],['sales','売上(円)',1],['yoy','前年同曜日比',1],['cust','お客様数',1],['up','お客様単価(円)',1],
+  ['via','販促の経由売上(円)',1],['share','売上に占める割合',1],['cost','店舗負担の費用(円)',1],['roi','費用対効果',1],['j1','判定',0],['gp','粗利÷費用',1],['j2','粗利判定',0],['days','入力日数',1]];
+function renderCompare(){
+  const month=$('cMonth').value, q=$('cFind').value.trim();
+  let rows=cmpRows(month);
+  const hasS=hasSalesFor(month);
+  const tot=rows.reduce((a,r)=>{ a.sales+=r.sales||0; a.ly+=r.ly||0; a.cust+=r.cust||0; a.via+=r.via; a.cost+=r.cost; a.fs+=r.fs; a.fg+=r.fg; return a; },{sales:0,ly:0,cust:0,via:0,cost:0,fs:0,fg:0});
+  if(q) rows=rows.filter(r=>r.name.includes(q)||r.code.includes(q));
+  const k=CMP.key;
+  rows.sort((a,b)=>{ if(k==='code') return CMP.dir*a.code.localeCompare(b.code); const x=a[k], y=b[k]; if(x==null&&y==null) return 0; if(x==null) return 1; if(y==null) return -1; return CMP.dir*(x-y); });
+  const f=(v,d)=>v==null?'―':d?Number(v).toFixed(d):yen(v);
+  let h='<thead><tr>'+CMPCOLS.map(([key,l,n])=>{ const on=CMP.key===key; return `<th ${key==='j1'||key==='j2'?'':`data-sort="${key}" style="cursor:pointer" aria-sort="${on?(CMP.dir>0?'ascending':'descending'):'none'}"`}>${l}${on?(CMP.dir>0?' ▲':' ▼'):''}</th>`; }).join('')+'</tr></thead><tbody>';
+  for(const r of rows){
+    const [c1,t1]=judge(r.roi), [c2,t2]=judgeGP(r.gp);
+    const yc=r.yoy==null?'':r.yoy>=100?'var(--good)':r.yoy<90?'var(--bad)':'';
+    h+=`<tr><td>${r.code} ${esc(r.name)}</td><td>${f(r.sales)}</td><td style="${yc?'color:'+yc+';font-weight:500':''}">${r.yoy==null?'―':r.yoy.toFixed(1)+'%'}</td><td>${f(r.cust)}</td><td>${f(r.up)}</td>
+      <td>${r.via?yen(r.via):'―'}</td><td>${r.share==null||!r.via?'―':r.share.toFixed(1)+'%'}</td><td>${r.cost?yen(r.cost):'―'}</td><td>${r.roi==null?'―':r.roi.toFixed(1)+'倍'}</td>
+      <td>${r.cost?(r.roi==null?'<span class="chip none">入力待ち</span>':`<span class="chip ${c1}">${t1}</span>`):'<span class="chip none">費用なし</span>'}</td><td>${r.gp==null?'―':r.gp.toFixed(2)+'倍'}</td><td>${r.cost?(r.gp==null?'<span class="chip none">入力待ち</span>':`<span class="chip ${c2}">${t2}</span>`):'<span class="chip none">―</span>'}</td>
+      <td>${r.days}${r.biz?`<span class="meta"> / ${r.biz}日</span>`:''}</td></tr>`;
+  }
+  const roiT=tot.cost>0&&tot.fs>0?tot.fs/tot.cost:null, gpT=tot.cost>0&&tot.fs>0?tot.fg/tot.cost:null, [c1,t1]=judge(roiT), [c2,t2]=judgeGP(gpT);
+  h+=`<tr class="group"><td>全店の合計</td><td>${hasS?yen(tot.sales):'―'}</td><td>${tot.ly?(tot.sales/tot.ly*100).toFixed(1)+'%':'―'}</td><td>${hasS?yen(tot.cust):'―'}</td><td>${tot.cust?yen(tot.sales/tot.cust):'―'}</td>
+    <td>${yen(tot.via)}</td><td>${tot.sales&&tot.via?(tot.via/tot.sales*100).toFixed(1)+'%':'―'}</td><td>${yen(tot.cost)}</td><td>${roiT==null?'―':roiT.toFixed(1)+'倍'}</td><td>${roiT==null&&tot.cost>0?'<span class="chip none">入力待ち</span>':`<span class="chip ${c1}">${t1}</span>`}</td><td>${gpT==null?'―':gpT.toFixed(2)+'倍'}</td><td>${gpT==null&&tot.cost>0?'<span class="chip none">入力待ち</span>':`<span class="chip ${c2}">${t2}</span>`}</td><td></td></tr>`;
+  $('tblCmp').innerHTML=h+'</tbody>';
+  const src=costTable(month).source;
+  $('cmpNote').textContent=(hasS?'':'この月の売上CSVは未取込です。売上・お客様数・前年比は、「売上取込」で取り込むと表示されます。 ')
+    +'費用対効果と粗利は、店舗が負担する費用(グルメサイト等)がある施策だけで計算します。本部共通費(千房アプリ・カンリー・ミライロ・LINE)は含みません。 '
+    +(src==='avg'?'費用は2026年4〜9月の平均(仮)です。 ':src==='none'?'この月の費用は未取込です。 ':'')
+    +'入力日数は、入力または「該当なし」を送信した日数です(右は売上のある日数)。';
+  rowsCache=rows;
+}
+let rowsCache=[];
+function cmpCsv(){
+  const head=CMPCOLS.map(c=>c[1]).concat(['粗利判定']).filter((x,i,a)=>true);
+  const lines=[['店舗コード','店舗名','売上(税抜)','前年同曜日','前年同曜日比(%)','お客様数','お客様単価','販促の経由売上','店舗負担の費用','費用対効果(倍)','粗利÷費用(倍)','入力日数','売上のある日数']];
+  for(const r of rowsCache) lines.push([r.code,r.name,r.sales??'',r.ly??'',r.yoy==null?'':r.yoy.toFixed(1),r.cust??'',r.up==null?'':Math.round(r.up),Math.round(r.via),Math.round(r.cost),r.roi==null?'':r.roi.toFixed(2),r.gp==null?'':r.gp.toFixed(2),r.days,r.biz]);
+  const t='﻿'+lines.map(l=>l.map(x=>`"${String(x).replace(/"/g,'""')}"`).join(',')).join('\r\n');
+  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([t],{type:'text/csv'})); a.download=`店舗別比較_${$('cMonth').value}.csv`; document.body.appendChild(a); a.click(); a.remove();
+}
+
+/* ---------- 売上・割引CSVの取込 ---------- */
+let parsedSales=null;
+async function readCsvText(f){
+  const buf=await f.arrayBuffer(); let t;
+  try{ t=new TextDecoder('utf-8',{fatal:true}).decode(buf); }catch(e){ t=new TextDecoder('shift_jis').decode(buf); }
+  return t.charCodeAt(0)===0xFEFF ? t.slice(1) : t;
+}
+const normDate = s => { const m=/^(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})/.exec(String(s||'').trim()); if(!m) return null; const iso=`${m[1]}-${String(m[2]).padStart(2,'0')}-${String(m[3]).padStart(2,'0')}`; const d=new Date(iso+'T00:00:00Z'); return !isNaN(d)&&d.toISOString().slice(0,10)===iso ? iso : null; };
+const normStore = s => { const t=String(s||'').trim(); return /^\d+$/.test(t)? t.padStart(3,'0') : t; };
+function parseSalesFile(name,text,acc){
+  const rows=parseCSV(text).filter(r=>r.length>1), h=(rows[0]||[]).map(s=>String(s).trim()), col=n=>h.indexOf(n);
+  const need=(list)=>{ const miss=list.filter(n=>col(n)<0); if(miss.length) throw new Error(`${name}: 必要な列がありません(${miss.join('、')})`); };
+  let kind;
+  if(col('券種コード')>=0 && col('値引額')>=0){ kind='disc'; need(['営業日','店舗コード','券種コード','券種名称','売上貢献額','値引額','値引組数','値引客数']); }
+  else if(col('売上実績')>=0 && col('営業日')>=0){ kind='sales'; need(['店舗コード','営業日','売上実績','売上前年','客数実績','組数実績']); }
+  else throw new Error(`${name}: 日次の売上CSV(店舗別・日別)でも、割引効果のCSVでもありません。`);
+  const f={kind,name,rows:0,skipped:0,dup:0}, map=acc[kind];
+  const cat=col('売上分類');
+  for(const r of rows.slice(1)){
+    const d=normDate(r[col('営業日')]), s=normStore(r[col(kind==='sales'?'店舗コード':'店舗コード')]);
+    if(!d||!s){ f.skipped++; continue; }
+    if(kind==='sales'){
+      if(cat>=0 && String(r[cat]).trim()!=='計'){ f.skipped++; continue; }
+      const k=d+'|'+s, v=[d,s,num(r[col('売上実績')]),num(r[col('売上前年')]),num(r[col('客数実績')]),num(r[col('組数実績')])];
+      if(map.has(k)) f.dup++; map.set(k,v);
+    } else {
+      const code=String(r[col('券種コード')]).trim(), k=d+'|'+s+'|'+code;
+      const v=[d,s,code,String(r[col('券種名称')]).trim(),num(r[col('売上貢献額')]),num(r[col('値引額')]),num(r[col('値引組数')]),num(r[col('値引客数')])];
+      if(map.has(k)) f.dup++; map.set(k,v);
+    }
+    f.rows++;
+  }
+  if(!f.rows) throw new Error(`${name}: 取り込める行がありません。`);
+  return f;
+}
+function calDays(a,b){ const o=[]; for(let d=a; d<=b; d=addDays(d,1)) o.push(d); return o; }
+function summarizeSales(kind,list){
+  const dates=list.map(r=>r[0]).sort(), a=dates[0], b=dates[dates.length-1];
+  const stores=new Set(list.map(r=>r[1])), unknown=[...stores].filter(s=>!D.stores[s]).sort();
+  const days=calDays(a,b), per={};
+  for(const r of list){ (per[r[1]]||(per[r[1]]=new Set())).add(r[0]); }
+  const miss=kind!=='sales'?[]:Object.entries(per).filter(([s,x])=>x.size<days.length).map(([s,x])=>`${s} ${D.stores[s]||''}(${x.size}/${days.length}日)`);
+  const total=list.reduce((t,r)=>t+(kind==='sales'?r[2]:r[5]),0);
+  return {a,b,stores:stores.size,unknown,miss,total,n:list.length,months:[...new Set(dates.map(d=>d.slice(0,7)))]};
+}
+async function onSalesFiles(files){
+  const acc={sales:new Map(),disc:new Map()}, infos=[];
+  $('salesMsg').textContent='読み込み中…'; $('salesMsg').className='msg';
+  try{ for(const f of files) infos.push(parseSalesFile(f.name, await readCsvText(f), acc)); }
+  catch(e){ $('salesMsg').textContent='読み込めませんでした。'+e.message; $('salesMsg').className='msg err'; parsedSales=null; renderSalesPreview(); return; }
+  parsedSales={sales:[...acc.sales.values()],disc:[...acc.disc.values()],infos};
+  $('salesMsg').textContent=`${files.length}ファイルを読み込みました。内容を確認して取り込んでください。`; $('salesMsg').className='msg ok';
+  renderSalesPreview();
+}
+function renderSalesPreview(){
+  const box=$('salesPreview');
+  if(!parsedSales){ box.innerHTML=''; return; }
+  const kinds=[['sales','日次の売上(店舗別・日別)',parsedSales.sales],['disc','割引の効果(券種別・日別)',parsedSales.disc]].filter(k=>k[2].length);
+  let h='<h2>読み込み結果(まだ保存していません)</h2><div class="tablebox"><table style="min-width:760px"><thead><tr><th>種類</th><th>期間</th><th>店舗数</th><th>行数</th><th id="thTot">合計(円)</th><th>確認</th></tr></thead><tbody>';
+  for(const [kind,label,list] of kinds){
+    const s=summarizeSales(kind,list), notes=[];
+    if(s.unknown.length) notes.push(`未登録の店舗コード: ${s.unknown.join('、')}(取り込みますが、店舗マスターに無いため比較には出ません)`);
+    if(s.miss.length) notes.push(`日数が足りない店舗: ${s.miss.slice(0,6).join('、')}${s.miss.length>6?` ほか${s.miss.length-6}店`:''}`);
+    const inf=parsedSales.infos.filter(i=>i.kind===kind), dup=inf.reduce((t,i)=>t+i.dup,0), sk=inf.reduce((t,i)=>t+i.skipped,0);
+    if(dup) notes.push(`同じ日・店舗の重複が${dup}行あります(後の行を採用)`);
+    if(sk) notes.push(`対象外の行を${sk}行スキップしました`);
+    h+=`<tr><td>${label}</td><td>${s.a} 〜 ${s.b}</td><td>${s.stores}</td><td>${yen(s.n)}</td><td>${yen(s.total)}<span class="meta"> ${kind==='sales'?'売上':'値引額'}</span></td>
+      <td style="white-space:normal;text-align:left">${notes.length?notes.map(n=>`<span class="chip warn" style="margin:2px 0">${esc(n)}</span>`).join('<br>'):'<span class="chip good">問題なし</span>'}</td></tr>`;
+  }
+  h+=`</tbody></table></div><div style="margin-top:10px;display:flex;gap:12px;flex-wrap:wrap;align-items:center"><button class="btn" id="btnSalesImport" type="button">この内容で取り込む</button><span class="meta">同じ日・同じ店舗(割引は同じ券種)がすでにある場合は、新しい内容で置き換えます。</span></div>`;
+  box.innerHTML=h;
+}
+async function importSales(){
+  const {sales,disc}=parsedSales, btn=$('btnSalesImport'); btn.disabled=true;
+  try{
+    if(CFG.API){
+      if(sales.length) await api('POST',null,{action:'sales',key:HQKEY,rows:sales});
+      if(disc.length) await api('POST',null,{action:'disc',key:HQKEY,rows:disc});
+      await loadCov(); await hqLoad($('fMonth').value||DEFMONTH);
+    } else {
+      const imp=loadImp(), ms=new Map(imp.sales.map(r=>[r[0]+'|'+r[1],r])), md=new Map(imp.disc.map(r=>[r[0]+'|'+r[1]+'|'+r[2],r]));
+      for(const r of sales) ms.set(r[0]+'|'+r[1],r); for(const r of disc) md.set(r[0]+'|'+r[1]+'|'+r[2],r);
+      saveImp({sales:[...ms.values()],disc:[...md.values()]});
+    }
+  }catch(e){ btn.disabled=false; $('salesMsg').textContent='取り込めませんでした。'+e.message; $('salesMsg').className='msg err'; return; }
+  _ix=null;
+  $('salesMsg').textContent=`売上${sales.length}行・割引${disc.length}行を取り込みました。ダッシュボードと店舗別比較に反映されます。`; $('salesMsg').className='msg ok';
+  parsedSales=null; renderSalesPreview(); renderSalesList(); refreshMonths();
+}
+async function loadCov(){ const j=await api('GET',{action:'salesCov',key:HQKEY}); remote.cov=j.cov; remote.months=j.cov.map(c=>c.month); }
+function covLocal(){
+  const out={}, ixx=ix(), imp=loadImp(), impM=new Set([...imp.sales,...imp.disc].map(r=>r[0].slice(0,7)));
+  for(const m in ixx.s){ const o=out[m]||(out[m]={month:m,days:0,stores:0,sales:0,discRows:0,discAmt:0,at:''}); const ds=new Set(); let st=0;
+    for(const c in ixx.s[m]){ st++; for(const dd in ixx.s[m][c]){ ds.add(dd); o.sales+=ixx.s[m][c][dd][2]; } } o.days=ds.size; o.stores=st; }
+  for(const m in ixx.d){ const o=out[m]||(out[m]={month:m,days:0,stores:0,sales:0,discRows:0,discAmt:0,at:''});
+    for(const c in ixx.d[m]) for(const k in ixx.d[m][c]){ o.discRows++; o.discAmt+=ixx.d[m][c][k][5]; } }
+  return Object.values(out).sort((a,b)=>a.month<b.month?1:-1).map(o=>Object.assign(o,{imported:impM.has(o.month)}));
+}
+function renderSalesList(){
+  const cov=CFG.API ? (remote.cov||[]).slice().sort((a,b)=>a.month<b.month?1:-1) : covLocal();
+  if(!cov.length){ $('salesList').innerHTML='<p class="meta">まだ取り込んだ月はありません。</p>'; return; }
+  let h='<div class="tablebox"><table style="min-width:720px"><thead><tr><th>対象月</th><th>売上の日数</th><th>店舗数</th><th>売上の合計(円)</th><th>割引の行数</th><th>値引額の合計(円)</th><th>最終取込</th><th></th></tr></thead><tbody>';
+  for(const c of cov){
+    const del=DELS===c.month?`<span class="meta">この月の売上と割引を削除します。</span> <button class="btn" style="padding:2px 10px" data-delsok="${c.month}" type="button">削除する</button> <button class="btn ghost" style="padding:2px 10px" data-delsno="1" type="button">やめる</button>`
+      :(CFG.API||c.imported)?`<button class="btn ghost" style="padding:2px 10px" data-dels="${c.month}" type="button">削除</button>`:'<span class="meta">試作の内蔵データ</span>';
+    h+=`<tr><td>${monthLabel(c.month)}</td><td>${c.days}日</td><td>${c.stores}</td><td>${yen(c.sales)}</td><td>${yen(c.discRows)}</td><td>${yen(c.discAmt)}</td><td>${c.at||'―'}</td><td>${del}</td></tr>`; }
+  $('salesList').innerHTML=h+'</tbody></table></div>';
+}
+let DELS=null;
+async function deleteSalesMonth(m){
+  try{
+    if(CFG.API){ await api('POST',null,{action:'salesDelete',key:HQKEY,month:m}); await loadCov(); await hqLoad($('fMonth').value||DEFMONTH); }
+    else{ const imp=loadImp(); saveImp({sales:imp.sales.filter(r=>r[0].slice(0,7)!==m),disc:imp.disc.filter(r=>r[0].slice(0,7)!==m)}); }
+  }catch(e){ $('salesMsg').textContent='削除できませんでした。'+e.message; $('salesMsg').className='msg err'; return; }
+  _ix=null; renderSalesList(); refreshMonths();
+}
+
+function tokenFor(code){   // 試作用。本番はGASが作る「店舗URL」タブのコードを使います
+  const s=code+'|chibo-promo-2026'; let h=2166136261, h2=7;
+  for(let i=0;i<s.length;i++){ h^=s.charCodeAt(i); h=Math.imul(h,16777619)>>>0; h2=Math.imul(h2^s.charCodeAt(i),2246822519)>>>0; }
+  return (h.toString(36)+h2.toString(36)).slice(0,8);
+}
+let CTX=null;
+async function fetchStore(){ const j=await api('GET',{action:'store',store:CTX.code,token:CTX.token}); remote.entries=j.entries; if(j.master) applyMaster(j.master); }
+function needKey(msg){ $('hqBar').hidden=false; $('hqMsg').textContent=msg||''; }
+async function hqLoad(month){      // 本部の画面を開く前に、キー確認とデータ読込
+  if(!CFG.API) return true;
+  if(!HQKEY){ needKey(); return false; }
+  try{
+    if(!remote.masterLoaded){ const m=await api('GET',{action:'masters2',key:HQKEY}); remote.masterEmpty=!m.master; if(m.master) applyMaster(m.master); remote.masterLoaded=true; }
+    const j=await api('GET',{action:'dash',key:HQKEY,month}); remote.entries=j.entries; remote.costs=j.costs; remote.sales=j.sales; remote.disc=j.disc; remote.months=j.months; _ix=null; $('hqBar').hidden=true; return true; }
+  catch(e){ HQKEY=''; try{ localStorage.removeItem('promo-hq-key'); }catch(x){} needKey('開けませんでした。'+e.message); return false; }
+}
+async function renderUrls(){
+  const base=location.href.split('#')[0]; let tk={};
+  if(CFG.API) tk=(await api('GET',{action:'urls',key:HQKEY})).tokens; else for(const c of D.all) tk[c]=tokenFor(c);
+  let h='<thead><tr><th>店舗コード</th><th>店舗名</th><th>入力する施策の数</th><th>入力用URL(店舗に連絡するもの)</th></tr></thead><tbody>';
+  for(const c of D.all){ if(!tk[c]) continue; const u=`${base}#input/${c}-${tk[c]}`;
+    h+=`<tr><td>${c}</td><td>${D.stores[c]}</td><td>${applicable(c).length}</td><td><input class="mono" readonly value="${u}" style="width:100%;min-width:360px;padding:3px 6px" onfocus="this.select()" aria-label="${D.stores[c]}の入力用URL"></td></tr>`; }
+  $('tblUrls').innerHTML=h+'</tbody>';
+}
+async function enterStore(code,token){
+  const bad=()=>{ CTX=null; $('storeHead').textContent='このURLでは開けません。本部にご確認ください。'; $('inputBody').hidden=true; };
+  if(!code || (!CFG.API && D.all.indexOf(code)<0)) return bad();
+  if(CFG.API){ CTX={code,token}; try{ await fetchStore(); }catch(e){ return bad(); } }
+  else if(token!==tokenFor(code)) return bad();
+  CTX={code,token}; $('inputBody').hidden=false; $('iStore').value=code;
+  if(!D.stores[code]) return bad();
+  $('storeHead').textContent=code+' '+D.stores[code]+' の販促入力'; document.title=D.stores[code]+' 販促入力';
+  $('savedNote').textContent = CFG.API ? '直近60日分の入力です。間違えた場合は削除して、入力し直してください。' : 'このブラウザに保存されます。';
+  renderForm();
+}
+async function route(){
+  const h=location.hash, m=/^#input\/(\d{3})-(\w+)$/.exec(h);
+  const storeMode = /^#input\/./.test(h);
+  let v = storeMode ? 'input' : ({'#input':'input','#costs':'costs','#urls':'urls','#monitor':'monitor','#compare':'compare','#sales':'sales','#masters':'masters'}[h]||'dashboard');
+  if(CFG.API && v==='input' && !storeMode) v='dashboard';
+  document.querySelector('nav.tabs').hidden=storeMode; $('banner').hidden=storeMode||!!CFG.API;
+  $('tab-input').hidden=!!CFG.API; $('hqBar').hidden=true;
+  $('storeHead').hidden=!storeMode; $('iStore').closest('.field').hidden=storeMode; $('inputBody').hidden=false;
+  for(const k of ['dashboard','input','costs','urls','monitor','compare','sales','masters']){
+    $('view-'+k).hidden = v!==k;
+    const a=$('tab-'+k); if(a){ if(v===k) a.setAttribute('aria-current','page'); else a.removeAttribute('aria-current'); }
+  }
+  $('banner').querySelector('label').hidden = v!=='dashboard';
+  if(storeMode){ await enterStore(m&&m[1], m&&m[2]); return; }
+  if(v==='input'){ renderForm(); return; }
+  if(v==='monitor'){ const d=$('mDate').value; if(await hqRange(addDays(d,-6),d)) renderMonitor(); return; }
+  if(!(await hqLoad($('fMonth').value||DEFMONTH))) return;
+  $('setupNote').hidden = !(CFG.API && remote.masterEmpty && v!=='masters');
+  if(v==='dashboard'){ refreshMonths(); renderDashboard(); }
+  else if(v==='compare'){ monthOptions($('cMonth'),$('cMonth').value||$('fMonth').value); if(await hqLoad($('cMonth').value)){ monthOptions($('cMonth'),$('cMonth').value); renderCompare(); } }
+  else if(v==='sales'){ if(CFG.API){ try{ await loadCov(); }catch(e){ needKey(e.message); return; } } renderSalesList(); renderSalesPreview(); }
+  else if(v==='masters'){ renderMasters(); }
+  else if(v==='urls'){ try{ await renderUrls(); }catch(e){ needKey(e.message); } }
+  else { renderImported(); renderImportPreview(); }
+}
+function init(){
+  if(CFG.API) $('fMonth').innerHTML='';
+  if(!CFG.API) loadMasterLocal();
+  fillStoreSelects();
+  $('iDate').value = CFG.API ? todayJST() : '2026-11-12';
+  $('mDate').value = CFG.API ? todayJST() : '2026-10-31';
+  $('fMonth').onchange=async()=>{ if(await hqLoad($('fMonth').value)) renderDashboard(); };
+  $('fStore').onchange=$('useSample').onchange=renderDashboard;
+  $('hqGo').onclick=()=>{ HQKEY=$('hqKey').value.trim(); try{ localStorage.setItem('promo-hq-key',HQKEY); }catch(e){} route(); };
+  $('iStore').onchange=renderForm;
+  $('mDate').onchange=async()=>{ const d=$('mDate').value; if(d && await hqRange(addDays(d,-6),d)) renderMonitor(); };
+  $('modeTabs').addEventListener('click',ev=>{ const m=ev.target.dataset&&ev.target.dataset.m; if(!m) return; MODE=m; renderForm(); });
+  document.addEventListener('input',ev=>{
+    const el=ev.target, id=el.id||'';
+    if(id==='sGross'){ const n=$('sNet'); if(n.dataset.over!=='1') n.value = el.value===''?'':taxOut(+el.value); }
+    else if(id==='sNet'){ el.dataset.over='1'; }
+    else if(id.startsWith('t_')){ const x=$('x_'+id.slice(2)); if(x && x.dataset.over!=='1') x.value = el.value===''?'':taxOut(+el.value); }
+    else if(id.startsWith('x_')){ el.dataset.over='1'; }
+  });
+  document.addEventListener('click',ev=>{
+    const d=ev.target.dataset||{}, id=ev.target.id;
+    if(id==='btnAdd') addSingle();
+    else if(id==='btnSend') sendSingle();
+    else if(id==='btnSendBulk') sendBulk();
+    else if(id==='btnNone') sendNone();
+    else if(id==='btnMore'){ DONE=null; renderForm(); }
+    else if(d.rm!==undefined){ PENDING.splice(+d.rm,1); renderPending(); }
+    else if(d.fix){ FIXID=d.fix; renderSaved(); const f=$('fixNote'); if(f) f.focus(); }
+    else if(id==='btnFixCancel'){ FIXID=null; renderSaved(); }
+    else if(id==='btnFixSend') sendFix();
+    else if(d.hqedit){ HQEDIT=d.hqedit; renderMonitor(); }
+    else if(d.hqno) hqDismiss(d.hqno);
+    else if(id==='btnHqCancel'){ HQEDIT=null; renderMonitor(); }
+    else if(id==='btnHqApply') hqApply();
+  });
+  $('iStore').onchange=()=>{ PENDING=[]; DONE=null; renderForm(); };
+  $('cMonth').onchange=async()=>{ if(await hqLoad($('cMonth').value)) renderCompare(); };
+  $('cFind').oninput=renderCompare; $('cCsv').onclick=cmpCsv;
+  $('tblCmp').addEventListener('click',ev=>{ const k=ev.target.closest('th')&&ev.target.closest('th').dataset.sort; if(!k) return; if(CMP.key===k) CMP.dir=-CMP.dir; else{ CMP.key=k; CMP.dir=k==='code'?1:-1; } renderCompare(); });
+  $('salesFile').onchange=ev=>{ if(ev.target.files.length) onSalesFiles([...ev.target.files]); };
+  $('salesPreview').addEventListener('click',ev=>{ if(ev.target.id==='btnSalesImport') importSales(); });
+  $('salesList').addEventListener('click',ev=>{ const d=ev.target.dataset||{};
+    if(d.dels){ DELS=d.dels; renderSalesList(); } else if(d.delsno){ DELS=null; renderSalesList(); } else if(d.delsok){ const m=d.delsok; DELS=null; deleteSalesMonth(m); } });
+  $('mstTabs').addEventListener('click',ev=>{ const t=ev.target.dataset&&ev.target.dataset.t; if(!t) return; MST=t; mstMsg(''); renderMasters(); });
+  $('mstBody').addEventListener('click',ev=>{ const id=ev.target.id;
+    if(id==='mstSave') saveMasterForm(); else if(id==='fcAdd') addFixedCost(); else if(id==='nsAdd') addStoreMaster(); else if(id==='npAdd') addPolicyMaster();
+    else if(id==='mxAll'||id==='mxNone') document.querySelectorAll('[data-mx]').forEach(el=>{ el.checked=id==='mxAll'; }); });
+  $('mstSeedFile').onchange=ev=>{ if(ev.target.files[0]) loadSeed(ev.target.files[0]); };
+  $('mstBody').addEventListener('change',ev=>{ if(ev.target.id==='mxPol'){ MSEL=ev.target.value; renderMasters(); } });
+  $('impFile').onchange=ev=>{ if(ev.target.files.length) onFiles([...ev.target.files]); };
+  $('impList').addEventListener('click',async ev=>{ const m=ev.target.dataset&&ev.target.dataset.delc; if(!m) return;
+    if(CFG.API){ try{ await api('POST',null,{action:'costsDelete',key:HQKEY,month:m}); await hqLoad($('fMonth').value||DEFMONTH); }catch(e){ $('impMsg').textContent='削除できませんでした。'+e.message; $('impMsg').className='msg err'; return; } }
+    else{ const c=loadCosts(); delete c[m]; saveCosts(c); }
+    renderImported(); refreshMonths(); });
+  addEventListener('hashchange',route);
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{ if(!$('view-dashboard').hidden) renderDashboard(); });
+  route();
+}
+init();
+</script>
