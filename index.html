@@ -157,6 +157,17 @@ select,input[type=number],input[type=date],input[type=text]{border-radius:8px}
   .banner{flex-direction:column;align-items:flex-start}
   .banner label{margin-left:0}
 }
+/* ---- v9 通信中バー・リンクボタン ---- */
+a.linkbtn{display:inline-block;text-decoration:none}
+.hmo{display:none}
+#tblRes th:first-child,#tblRes td:first-child{min-width:0}
+@media (max-width:640px){#rKpis{grid-template-columns:1fr 1fr;gap:10px}#rKpis .kpi{padding:12px 12px 12px 16px}#rKpis .kpi .v{font-size:24px}.hm{display:none}.hmo{display:inline;font-size:11px}#tblRes th,#tblRes td,#tblResDay th,#tblResDay td{padding:9px 8px;font-size:13px}#tblRes td:first-child{white-space:normal}}
+header.top{position:relative}
+header.top::after{content:"";position:absolute;left:0;right:0;bottom:0;height:3px;background:linear-gradient(90deg,transparent,#fff,transparent);background-size:40% 100%;background-repeat:no-repeat;opacity:0;pointer-events:none}
+body.busy header.top::after{opacity:.9;animation:busy 1.1s linear infinite}
+@keyframes busy{from{background-position:-40% 0}to{background-position:140% 0}}
+@media (prefers-reduced-motion:reduce){body.busy header.top::after{animation:none;background:#fff;opacity:.5}}
+@media (max-width:640px){a.linkbtn{display:block;text-align:center;padding:12px 16px}}
 </style>
 
 <div class="wrap">
@@ -304,6 +315,7 @@ select,input[type=number],input[type=date],input[type=text]{border-radius:8px}
 
 <main id="view-input" hidden>
   <h2 id="storeHead" hidden style="margin-top:18px"></h2>
+  <p id="resLinkP" hidden style="margin:0 0 6px"><a class="btn ghost linkbtn" id="toResult" href="#">自店の結果を見る</a></p>
   <div id="inputBody">
   <div id="doneBox" hidden></div>
   <div id="formWrap">
@@ -326,6 +338,23 @@ select,input[type=number],input[type=date],input[type=text]{border-radius:8px}
   <div class="tablebox"><table id="tblSaved" style="min-width:640px"></table></div>
   </div>
 </main>
+
+<main id="view-result" hidden>
+  <h2 id="resHead" style="margin-top:18px">自店の結果</h2>
+  <p style="margin:0 0 6px"><a class="btn ghost linkbtn" id="backInput" href="#">販促の入力にもどる</a></p>
+  <div class="filters"><div class="field"><span>対象月</span><select id="rMonth"></select></div>
+    <div class="meta" id="resNote" style="margin-left:auto;max-width:460px"></div></div>
+  <section class="kpis" id="rKpis" aria-label="自店のサマリー"></section>
+  <h2>施策ごとの入力(税抜)</h2>
+  <p class="note">店舗が入力した、その月の合計です。経由売上は、税込で入力した金額から計算した税抜の金額です。</p>
+  <div class="tablebox"><table id="tblRes" style="min-width:0"></table></div>
+  <h2>売上の推移(日別)</h2>
+  <p class="note" id="resTrendNote">実績と前年同曜日の売上。税抜。</p>
+  <div class="panel"><div class="chartbox"><canvas id="cRes" role="img" aria-label="自店の日別売上と前年同曜日の売上"></canvas></div></div>
+  <h2>日別の一覧</h2>
+  <div class="tablebox"><table id="tblResDay" style="min-width:0"></table></div>
+  <div class="foot">この画面には、自店の結果だけが表示されます。販促の費用や他の店舗の数字は表示されません。</div>
+</main>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
@@ -344,14 +373,16 @@ const remote = { entries: [], costs: {}, range: [], log: [], sales: [], disc: []
 let HQKEY=''; try{ HQKEY=localStorage.getItem('promo-hq-key')||''; }catch(e){}
 const THIS_MONTH = new Date().toISOString().slice(0,7);
 const DEFMONTH = CFG.API ? THIS_MONTH : '2026-10';
+let BUSY=0;
 async function api(method, params, body){
   if(!/^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec$/.test(CFG.API) && !/^https:\/\/gas\.test\//.test(CFG.API)) throw new Error('この画面は、ウェブアプリのURLがまだ設定されていません。');
-  let j;
+  let j; BUSY++; document.body.classList.add('busy');
   try{
     const r = await fetch(method==='GET' ? CFG.API+'?'+new URLSearchParams(params) : CFG.API,
       method==='GET' ? {} : {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify(body)});
     j = await r.json();
   }catch(e){ throw new Error('サーバーにつながりません。通信と、ウェブアプリの公開設定を確認してください。'); }
+  finally{ if(--BUSY<=0){ BUSY=0; document.body.classList.remove('busy'); } }
   if(!j.ok) throw new Error(j.error||'失敗しました'); return j;
 }
 
@@ -1277,13 +1308,19 @@ function tokenFor(code){   // 試作用。本番はGASが作る「店舗URL」�
 let CTX=null;
 async function fetchStore(){ const j=await api('GET',{action:'store',store:CTX.code,token:CTX.token}); remote.entries=j.entries; if(j.master) applyMaster(j.master); }
 function needKey(msg){ $('hqBar').hidden=false; $('hqMsg').textContent=msg||''; }
-async function hqLoad(month){      // 本部の画面を開く前に、キー確認とデータ読込
+const DCK='promo-dash-cache';
+function applyDash(j){ remote.entries=j.entries; remote.costs=j.costs; remote.sales=j.sales; remote.disc=j.disc; remote.months=j.months; _ix=null; }
+function readDashCache(){ try{ return JSON.parse(localStorage.getItem(DCK)||'null'); }catch(e){ return null; } }
+function writeDashCache(month,j){ try{ localStorage.setItem(DCK,JSON.stringify({month,j})); }catch(e){ try{ localStorage.removeItem(DCK); }catch(x){} } }
+async function hqLoad(month){      // 本部の画面を開く前に、キー確認とデータ読込(通信は1回)
   if(!CFG.API) return true;
   if(!HQKEY){ needKey(); return false; }
   try{
-    if(!remote.masterLoaded){ const m=await api('GET',{action:'masters2',key:HQKEY}); remote.masterEmpty=!m.master; if(m.master) applyMaster(m.master); remote.masterLoaded=true; }
-    const j=await api('GET',{action:'dash',key:HQKEY,month}); remote.entries=j.entries; remote.costs=j.costs; remote.sales=j.sales; remote.disc=j.disc; remote.months=j.months; _ix=null; $('hqBar').hidden=true; return true; }
-  catch(e){ HQKEY=''; try{ localStorage.removeItem('promo-hq-key'); }catch(x){} needKey('開けませんでした。'+e.message); return false; }
+    const prm={action:'dash',key:HQKEY,month}; if(!remote.masterFresh) prm.withMaster=1;
+    const j=await api('GET',prm);
+    if(!remote.masterFresh){ remote.masterEmpty=!j.master; if(j.master) applyMaster(j.master); remote.masterLoaded=remote.masterFresh=true; }
+    applyDash(j); writeDashCache(month,j); $('hqBar').hidden=true; return true; }
+  catch(e){ HQKEY=''; try{ localStorage.removeItem('promo-hq-key'); localStorage.removeItem(DCK); }catch(x){} needKey('開けませんでした。'+e.message); return false; }
 }
 async function renderUrls(){
   const base=location.href.split('#')[0]; let tk={};
@@ -1301,25 +1338,95 @@ async function enterStore(code,token){
   CTX={code,token}; $('inputBody').hidden=false; $('iStore').value=code;
   if(!D.stores[code]) return bad();
   $('storeHead').textContent=code+' '+D.stores[code]+' の販促入力'; document.title=D.stores[code]+' 販促入力';
+  $('toResult').href='#result/'+code+'-'+token;
   $('savedNote').textContent = CFG.API ? '直近60日分の入力です。間違えた場合は削除して、入力し直してください。' : 'このブラウザに保存されます。';
   renderForm();
 }
+
+/* ---------- 店舗: 自店の結果 ---------- */
+let resChart=null;
+function resMonths(){ const set=new Set([DEFMONTH,THIS_MONTH]); for(const m of salesMonths()) set.add(m); for(const e of loadEntries()) set.add(e.date.slice(0,7)); return [...set].sort().reverse(); }
+function fillResMonths(keep){ const sel=$('rMonth'), cur=keep||sel.value||DEFMONTH, ms=resMonths();
+  sel.innerHTML=ms.map(m=>`<option value="${m}">${monthLabel(m)}</option>`).join(''); sel.value=ms.includes(cur)?cur:ms[0]; }
+async function loadResult(month){
+  if(!CFG.API) return;
+  const j=await api('GET',{action:'storeDash',store:CTX.code,token:CTX.token,month});
+  remote.entries=j.entries; remote.sales=j.sales; remote.disc=[]; remote.months=j.months; _ix=null;
+}
+async function enterResult(code,token){
+  const bad=()=>{ CTX=null; $('resHead').textContent='このURLでは開けません。本部にご確認ください。'; for(const id of ['rKpis','tblRes','tblResDay']) $(id).innerHTML=''; $('resNote').textContent=''; };
+  if(!code) return bad();
+  if(CFG.API){ CTX={code,token}; try{ if(!D.stores[code]) await fetchStore(); }catch(e){ return bad(); } }
+  else if(D.all.indexOf(code)<0 || token!==tokenFor(code)) return bad();
+  if(!D.stores[code]) return bad();
+  CTX={code,token}; document.title=D.stores[code]+' 自店の結果';
+  $('resHead').textContent=code+' '+D.stores[code]+' の結果'; $('backInput').href='#input/'+code+'-'+token;
+  fillResMonths();
+  try{ await loadResult($('rMonth').value); }catch(e){ return bad(); }
+  fillResMonths($('rMonth').value); renderResult();
+}
+function renderResult(){
+  const m=$('rMonth').value, code=CTX.code, tot=(storeTotals(m)[code])||null, days=dailyOf(m,code);
+  const ents=entriesFor(m).filter(e=>e.store===code), by={}, inDay={};
+  for(const e of ents){ if(e.mode==='none'||!POL[e.policy]) continue;
+    const r=by[e.policy]||(by[e.policy]={groups:0,people:0,sales:0}), s=(e.amount!=null)?e.amount:e.people*unitPrice(code,m);
+    r.groups+=e.groups; r.people+=e.people; r.sales+=s; const d=inDay[e.date]||(inDay[e.date]={n:0,sales:0}); d.n+=e.groups; d.sales+=s; }
+  let via=0, vg=0, vp=0; for(const k in by){ via+=by[k].sales; vg+=by[k].groups; vp+=by[k].people; }
+  const ratio=tot&&tot[1]?tot[0]/tot[1]*100:null, share=tot&&tot[0]?via/tot[0]*100:null, nd=Object.keys(inDay).length;
+  $('resNote').textContent = tot ? '' : 'この月の売上は、本部が取り込むと表示されます。入力した内容は下に表示されます。';
+  const k=(l,v,s,main)=>`<div class="kpi${main?' main':''}"><div class="l">${l}</div><div class="v">${v}</div><div class="s">${s||'&nbsp;'}</div></div>`;
+  $('rKpis').innerHTML =
+    k('店舗売上(税抜)', tot?`${man(tot[0])}<small>万円</small>`:'―', tot?`お客様数 ${yen(tot[2])}人 / お客様単価 ${tot[2]?yen(tot[0]/tot[2]):'―'}円`:'売上の取込待ち')
+   +k('前年同曜日比', ratio!=null?`${ratio.toFixed(1)}<small>%</small>`:'―', tot&&tot[1]?`前年 ${man(tot[1])}万円`:'')
+   +k('販促の経由売上(税抜)', `${man(via)}<small>万円</small>`, `${yen(vg)}組 ${yen(vp)}人 / 入力 ${nd}日分`, true)
+   +k('売上にしめる割合', share!=null?`${share.toFixed(1)}<small>%</small>`:'―', tot?'経由売上 ÷ 店舗売上':'');
+  let h='<thead><tr><th>施策</th><th class="hm">区分</th><th>組数</th><th>人数</th><th>経由売上(円)</th><th class="hm">1人あたり(円)</th></tr></thead><tbody>';
+  const ids=applicable(code).slice().sort((a,b)=>((by[b]&&by[b].sales)||0)-((by[a]&&by[a].sales)||0));
+  for(const id of ids){ const p=POL[id], r=by[id];
+    h+= r ? `<tr><td>${p.name}</td><td class="hm">${TARGET[p.target]||''}</td><td>${yen(r.groups)}</td><td>${yen(r.people)}</td><td>${yen(r.sales)}</td><td class="hm">${r.people?yen(r.sales/r.people):'―'}</td></tr>`
+          : `<tr><td>${p.name}<span class="meta hmo"> ${TARGET[p.target]||''}</span></td><td class="hm">${TARGET[p.target]||''}</td><td colspan="4" class="meta" style="text-align:right">入力なし</td></tr>`; }
+  $('tblRes').innerHTML=h+'</tbody>';
+  // 推移グラフと日別の一覧
+  const day=days||{}, ds=Object.keys(day).sort();
+  if(resChart){ resChart.destroy(); resChart=null; }
+  const cur=ds.map(d=>day[d][0]/10000), prev=ds.map(d=>day[d][1]/10000);
+  $('resTrendNote').textContent = ds.length ? `実績と前年同曜日の売上(税抜、万円)。${ds.length}日分。` : 'この月の売上は、まだ取り込まれていません。';
+  if(ds.length && typeof Chart!=='undefined'){
+    Chart.defaults.font.family=css('--sans'); Chart.defaults.color=css('--muted');
+    resChart=new Chart($('cRes'),{type:'line',data:{labels:ds.map(d=>Number(d)+'日'),datasets:[
+      {label:'実績',data:cur,borderColor:css('--chart1'),backgroundColor:css('--chart1'),borderWidth:2.5,pointRadius:0,pointHoverRadius:4,tension:.2},
+      {label:'前年同曜日',data:prev,borderColor:css('--chart2'),backgroundColor:css('--chart2'),borderWidth:2,borderDash:[5,4],pointRadius:0,pointHoverRadius:4,tension:.2}]},
+      options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+        scales:{x:{grid:{display:false},ticks:{maxTicksLimit:8}},y:{beginAtZero:true,grid:{color:css('--grid')},ticks:{callback:v=>v.toLocaleString('ja-JP')},title:{display:true,text:'万円'}}},
+        plugins:{legend:{position:'top',align:'end',labels:{boxWidth:14,boxHeight:3}}}}});
+  }
+  const allDays=[...new Set([...ds.map(d=>m+'-'+d),...Object.keys(inDay)])].sort().reverse();
+  let t='<thead><tr><th>日付</th><th>売上(円)</th><th class="hm">前年同曜日(円)</th><th>前年比</th><th>経由組数</th><th>経由売上(円)</th></tr></thead><tbody>';
+  for(const d of allDays){ const r=day[d.slice(8)], e=inDay[d];
+    t+=`<tr><td>${Number(d.slice(5,7))}/${Number(d.slice(8))}</td><td>${r?yen(r[0]):'―'}</td><td class="hm">${r&&r[1]?yen(r[1]):'―'}</td><td>${r&&r[1]?(r[0]/r[1]*100).toFixed(0)+'%':'―'}</td><td>${e?yen(e.n):'―'}</td><td>${e?yen(e.sales):'―'}</td></tr>`; }
+  $('tblResDay').innerHTML = allDays.length ? t+'</tbody>' : '<tbody><tr><td class="meta">表示できる日がありません。</td></tr></tbody>';
+}
 async function route(){
-  const h=location.hash, m=/^#input\/(\d{3})-(\w+)$/.exec(h);
-  const storeMode = /^#input\/./.test(h);
-  let v = storeMode ? 'input' : ({'#input':'input','#costs':'costs','#urls':'urls','#monitor':'monitor','#compare':'compare','#sales':'sales','#masters':'masters'}[h]||'dashboard');
+  const h=location.hash, m=/^#(?:input|result)\/(\d{3})-(\w+)$/.exec(h);
+  const storeMode = /^#(?:input|result)\/./.test(h), isRes=/^#result\//.test(h);
+  let v = storeMode ? (isRes?'result':'input') : ({'#input':'input','#costs':'costs','#urls':'urls','#monitor':'monitor','#compare':'compare','#sales':'sales','#masters':'masters'}[h]||'dashboard');
   if(CFG.API && v==='input' && !storeMode) v='dashboard';
   document.querySelector('nav.tabs').hidden=storeMode; $('banner').hidden=storeMode||!!CFG.API;
   $('tab-input').hidden=!!CFG.API; $('hqBar').hidden=true;
   $('storeHead').hidden=!storeMode; $('iStore').closest('.field').hidden=storeMode; $('inputBody').hidden=false;
-  for(const k of ['dashboard','input','costs','urls','monitor','compare','sales','masters']){
+  for(const k of ['dashboard','input','result','costs','urls','monitor','compare','sales','masters']){
     $('view-'+k).hidden = v!==k;
     const a=$('tab-'+k); if(a){ if(v===k) a.setAttribute('aria-current','page'); else a.removeAttribute('aria-current'); }
   }
   $('banner').querySelector('label').hidden = v!=='dashboard';
-  if(storeMode){ await enterStore(m&&m[1], m&&m[2]); return; }
+  $('resLinkP').hidden=!(storeMode&&!isRes);
+  if(storeMode){ if(isRes) await enterResult(m&&m[1], m&&m[2]); else await enterStore(m&&m[1], m&&m[2]); return; }
   if(v==='input'){ renderForm(); return; }
   if(v==='monitor'){ const d=$('mDate').value; if(await hqRange(addDays(d,-6),d)) renderMonitor(); return; }
+  if(CFG.API && v==='dashboard' && !remote.masterFresh && HQKEY){   // 前回の表示を先に出し、裏で最新に更新する
+    const c=readDashCache(), mo=$('fMonth').value||DEFMONTH;
+    if(c && c.month===mo && c.j){ try{ remote.masterEmpty=!c.j.master; if(c.j.master) applyMaster(c.j.master); remote.masterLoaded=true; applyDash(c.j); refreshMonths(); renderDashboard(); }catch(e){} }
+  }
   if(!(await hqLoad($('fMonth').value||DEFMONTH))) return;
   $('setupNote').hidden = !(CFG.API && remote.masterEmpty && v!=='masters');
   if(v==='dashboard'){ refreshMonths(); renderDashboard(); }
@@ -1339,6 +1446,7 @@ function init(){
   $('fStore').onchange=$('useSample').onchange=renderDashboard;
   $('hqGo').onclick=()=>{ HQKEY=$('hqKey').value.trim(); try{ localStorage.setItem('promo-hq-key',HQKEY); }catch(e){} route(); };
   $('iStore').onchange=renderForm;
+  $('rMonth').onchange=async()=>{ try{ await loadResult($('rMonth').value); }catch(e){ return; } renderResult(); };
   $('mDate').onchange=async()=>{ const d=$('mDate').value; if(d && await hqRange(addDays(d,-6),d)) renderMonitor(); };
   $('modeTabs').addEventListener('click',ev=>{ const m=ev.target.dataset&&ev.target.dataset.m; if(!m) return; MODE=m; renderForm(); });
   document.addEventListener('input',ev=>{
